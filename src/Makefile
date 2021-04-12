@@ -1,7 +1,7 @@
-INCLUDE = -I. -I../include# -I/home/victor/git/libcuckoo -I/home/victor/git/xenium
+INCLUDE = -I. -I../include -I/home/victor/git/libcuckoo# -I/home/victor/git/xenium
 LIB = -L/usr/lib/x86_64-linux-gnu/ -L -L. -L../lib
-#libs -lurcu -lurcu-cds -lurcu-signal -lssmem -lsspfd
-CPP = g++ -O2 -Wno-deprecated -pthread -std=c++11 $(LIB) $(INCLUDE) -DITHACA=$(ITHACA)
+LIBS = -ltbb #libs -lurcu -lurcu-cds -lurcu-signal -lssmem -lsspfd
+CPP = g++ -O2 -Wno-deprecated -pthread -std=c++11 $(LIB) $(LIBS) $(INCLUDE) -DITHACA=$(ITHACA)
 CPPDEBUG = g++ -O2 -Wno-deprecated -pthread -std=c++11 -g $(LIB) $(INCLUDE)
 DEPS = intset.h ssmem.h sspfd.h countingalgorithms.h thread_data.h thread_utils.h cm_benchmark.h barrier.h data_generator.h gen_scheme.h range_sum.h relation.h RM7_range_sum.h sampling.h sketches.h utils.h xis.h
 BIN = ../bin

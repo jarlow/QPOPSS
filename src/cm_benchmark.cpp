@@ -80,11 +80,10 @@ xorshf96(unsigned long* x, unsigned long* y, unsigned long* z)  //period 2^96-1
 
   return *z;
 }
-void insertCountingFrequency (threadDataStruct * localThreadData, uint64_t key, uint64_t amount){
-    uint64_t bigN = N.fetch_add(amount, std::memory_order_relaxed); //maximize performance, relax ordering
-    //if (amount > 1){ // heuristic optimization: if the item only occurs once in delegationfilter, it is probably outlier.  
-    localThreadData->frequentItems->Insert(bigN+amount,1000,key,amount);
-    //}
+void insertCountingFrequency (threadDataStruct * localThreadData, uint64_t key, uint64_t amount){ //maximize performance, relax ordering
+    localThreadData->frequentItems->Insert(N.fetch_add(amount, std::memory_order_relaxed),key,amount); 
+    //bign+=amount;
+    //localThreadData->frequentItems->Insert(N.fetch_add(amount, std::memory_order_relaxed),key,amount); 
 }
 int shouldQuery(threadDataStruct *ltd){
     return (my_random(&(ltd->seeds[0]), &(ltd->seeds[1]), &(ltd->seeds[2])) % 1000);
@@ -189,13 +188,11 @@ void serveDelegatedInsertsAndQueries(threadDataStruct *localThreadData){
 }
 
 static inline void delegateInsert(threadDataStruct * localThreadData, unsigned int key, unsigned int increment, int owner){
-    if (owner == localThreadData->tid){
-        #if LOSSY ||STICKY
-        insertCountingFrequency(localThreadData,key,increment);
-        #endif
-        insertFilterNoWriteBack(localThreadData, key, increment); 
-        return;
-    }
+    //Below code breaks TOPK, need all items to go through delegationfilters (so that items accumulate there)
+    //if (owner == localThreadData->tid){
+        //insertFilterNoWriteBack(localThreadData, key, increment); 
+        //return;
+    //}
     FilterStruct * filter = &(filterMatrix[localThreadData->tid * numberOfThreads + owner]);
     threadDataStruct * owningThread = &(threadData[owner]);
     //try to insert in filterMatrix[localThreadData->tid * numberofThreads + owner]
@@ -328,9 +325,7 @@ void threadWork(threadDataStruct *localThreadData)
             }
             else{
                 numInserts++;
-                #if SINGLE
-                insertCountingFrequency(localThreadData, key, 1); // insert into the single threaded counting algo.
-                #elif DELEGATION_FILTERS
+                #if DELEGATION_FILTERS
                 serveDelegatedInserts(localThreadData);
                 //int old_owner = key - numberOfThreads * libdivide::libdivide_s32_do((uint32_t)key, fastDivHandle);
                 int owner = findOwner(key);
@@ -538,11 +533,6 @@ int main(int argc, char **argv)
 
     COUNTING_PARAM = atoi(argv[12]);
 
-    //SINGLE = 1;
-    //LOSSY = 1;
-    //STICKY = 0;
-
-
     //srand((unsigned int)time((time_t *)NULL));
     srand(0);
 
@@ -597,15 +587,14 @@ int main(int argc, char **argv)
         printf("size of the sketch %lu\n",sizeof(Count_Min_Sketch));
         globalSketch = new Count_Min_Sketch(buckets_no, rows_no, cm_cw2b);
         Count_Min_Sketch ** cmArray = (Count_Min_Sketch **) aligned_alloc(64, numberOfThreads * sizeof(Count_Min_Sketch *));
-        int k=COUNTING_PARAM;
         CountingAlgorithm ** freqItemsArray = (CountingAlgorithm **) aligned_alloc(64,numberOfThreads * sizeof(CountingAlgorithm *));
         #if LOSSY
         for (i=0; i<numberOfThreads; i++){
-            freqItemsArray[i] = new LossyCounting(k);
+            freqItemsArray[i] = new LossyCounting(COUNTING_PARAM);
         }
         #elif STICKY
                 for (i=0; i<numberOfThreads; i++){
-            freqItemsArray[i] = new LossyCounting(k); // fix sticky sampling
+            freqItemsArray[i] = new LossyCounting(COUNTING_PARAM); // fix sticky sampling
         }
         #endif
 

@@ -81,6 +81,7 @@ typedef struct
 
 /*TOPK*/
 std::atomic<uint64_t> N(0); // keep track of stream size across threads
+//uint64_t bign=0;
 /*TOPK*/
 Count_Min_Sketch * globalSketch;
 int numberOfThreads;

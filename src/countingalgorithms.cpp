@@ -18,34 +18,60 @@ LossyCounting::~LossyCounting(){
     w=0;
 }
 // keep track of frequent items, from this paper by Manku, Motwani: https://www.vldb.org/conf/2002/S10P03.pdf
-void LossyCounting::Insert(uint64_t N, uint64_t w, uint64_t  key, uint64_t amount){
+void LossyCounting::Insert(uint64_t N, uint64_t  key, uint64_t amount){
+    //printf("inhere\n");
     uint64_t delta = N/this->w;
-    std::unordered_map<uint64_t,uint64_t>::iterator got = this->frequentItems.find(key);
+    auto got = this->frequentItems.find(key);
     if (got == this->frequentItems.end()){
-        //if (amount > 1){
+        if (amount > 1){ // heuristic optimization: if the item only occurs once in delegationfilter, it is probably outlier.  
             this->frequentItems.emplace(key,delta+amount);
-        //}
+        }
     } 
     else{
         got->second+=amount;
     }
-    if (this->old_delta != delta){
-        this->prune(delta);
-        this->old_delta=delta;
+    
+    /*
+    uint64_t val;
+    if (frequentItems.find(key, val)){
+        frequentItems.update(key,val+amount);
+        //val+=amount;
     }
-}
-// iterate over items and remove if value < delta
-void LossyCounting::prune(int delta){ 
+    else{
+        frequentItems.insert(key,delta+amount);
+    }*/
+
+    if (this->old_delta != delta){
+        this->old_delta=delta;
+        this->prune();
+    }
+}// iterate over items and remove if value < delta
+void LossyCounting::prune(){ 
+    //printf("pruning!!\n");
+
+    /*
+    auto lt = this->frequentItems.lock_table();
+    auto lt_it = lt.begin();
+    while (lt_it != lt.end()) {
+        if (lt_it->second < this->old_delta) {
+            lt.erase(lt_it->first);
+        }
+        lt_it++;
+    }
+
+    */
+    
     auto it = this->frequentItems.begin();
     while (it != this->frequentItems.end()) {
-        if (it->second < delta) {
+        if (it->second < this->old_delta) {
             assert(this->frequentItems.size() >= 1);
-            it = this->frequentItems.erase(it);
+            it = this->frequentItems.unsafe_erase(it);
         }
         else{
             ++it; 
         }
     }
+    
 }
 
 int LossyCounting::size(){

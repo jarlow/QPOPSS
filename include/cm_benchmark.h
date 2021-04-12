@@ -40,6 +40,14 @@
 #define USE_LIST_OF_FILTERS 0
 #endif
 
+#ifndef LOSSY
+#define LOSSY 0
+#endif
+
+#ifndef STICKY
+#define STICKY 0
+#endif
+
 #ifndef ITHACA
 #define ITHACA 0
 #endif

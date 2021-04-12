@@ -8,7 +8,10 @@
 //#include "ConcurrentMap_Leapfrog.h"
 //#include <xenium/harris_michael_hash_map.hpp>
 //#include <xenium/reclamation/generic_epoch_based.hpp>
-#include <unordered_map>
+//#include <unordered_map>
+//#include <queue>
+//#include <boost/unordered_map.hpp>
+#include <tbb/concurrent_unordered_map.h>
 
 
 #define DS_CONTAINS(s,k,i)  cds_lfht_lookup(set, key, match, &key, &i)
@@ -26,10 +29,13 @@ class CountingAlgorithm
     protected:
       //DS_TYPE * frequentItems;
       //libcuckoo::cuckoohash_map<uint64_t, uint64_t> frequentItems;
-      std::unordered_map<uint64_t, uint64_t> frequentItems;
+      //std::unordered_map<uint64_t, uint64_t> frequentItems;
+      //boost::unordered::unordered_map<uint64_t, uint64_t> frequentItems;
+      tbb::concurrent_unordered_map<uint64_t,uint64_t> frequentItems;
+      //std::priority_queue<Item, std::vector<Item>, Compare > q;
     public:
       virtual int size()=0;
-      virtual void Insert(uint64_t N, uint64_t w, uint64_t key, uint64_t amount)=0;
+      virtual void Insert(uint64_t N, uint64_t key, uint64_t amount)=0;
       virtual void printkeys()=0;
       virtual ~CountingAlgorithm();
 };
@@ -40,13 +46,14 @@ class alignas(64) LossyCounting : public CountingAlgorithm
   protected:
     int w;
     int old_delta;
-    void prune(int delta);
+    void prune();
   public:
     LossyCounting(int w);
     virtual ~LossyCounting();
     virtual int size();
-    virtual void Insert(uint64_t N, uint64_t w, uint64_t key, uint64_t amount);
+    virtual void Insert(uint64_t N, uint64_t key, uint64_t amount);
     virtual void printkeys();
 };
+
 //
 #endif
