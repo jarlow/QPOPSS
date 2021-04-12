@@ -3,8 +3,8 @@
 //#include <urcu/rculfhash.h>	
 #include <pthread.h>
 #include "countingalgorithms.h"
-#include <vector>
 #include <map>
+#include <cassert>
 
 using namespace std;
 
@@ -50,8 +50,6 @@ void LossyCounting::prune(int delta){
 
 int LossyCounting::size(){
     return this->frequentItems.size();
-}
-void LossyCounting::GetItems(int k,cds_lfht_iter* iter){
 }
 void LossyCounting::printkeys(){
 }

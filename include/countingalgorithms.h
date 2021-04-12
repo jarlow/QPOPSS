@@ -3,11 +3,11 @@
 
 
 //trying out different maps, hence lots of imports
-#include "intset.h"
-#include <libcuckoo/cuckoohash_map.hh>
+//#include "intset.h"
+//#include <libcuckoo/cuckoohash_map.hh>
 //#include "ConcurrentMap_Leapfrog.h"
-#include <xenium/harris_michael_hash_map.hpp>
-#include <xenium/reclamation/generic_epoch_based.hpp>
+//#include <xenium/harris_michael_hash_map.hpp>
+//#include <xenium/reclamation/generic_epoch_based.hpp>
 #include <unordered_map>
 
 
@@ -28,7 +28,6 @@ class CountingAlgorithm
       //libcuckoo::cuckoohash_map<uint64_t, uint64_t> frequentItems;
       std::unordered_map<uint64_t, uint64_t> frequentItems;
     public:
-      virtual void GetItems(int k,cds_lfht_iter* iter)=0;
       virtual int size()=0;
       virtual void Insert(uint64_t N, uint64_t w, uint64_t key, uint64_t amount)=0;
       virtual void printkeys()=0;
@@ -45,7 +44,6 @@ class alignas(64) LossyCounting : public CountingAlgorithm
   public:
     LossyCounting(int w);
     virtual ~LossyCounting();
-    virtual void GetItems(int k,cds_lfht_iter* iter);
     virtual int size();
     virtual void Insert(uint64_t N, uint64_t w, uint64_t key, uint64_t amount);
     virtual void printkeys();
