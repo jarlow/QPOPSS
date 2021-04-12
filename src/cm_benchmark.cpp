@@ -2,10 +2,16 @@
 #include "xis.h"
 #include "sketches.h"
 #include "utils.h"
-#include "thread_data.h"
+//#include "thread_data.h"
 #include "thread_utils.h"
 #include "filter.h"
 #include "getticks.h"
+
+/* TOPK */
+#include "countingalgorithms.h"
+/* TOPK */
+
+
 
 #include <sys/time.h>
 #include <time.h>
@@ -74,11 +80,15 @@ xorshf96(unsigned long* x, unsigned long* y, unsigned long* z)  //period 2^96-1
 
   return *z;
 }
-
+void insertCountingFrequency (threadDataStruct * localThreadData, uint64_t key, uint64_t amount){
+    uint64_t bigN = N.fetch_add(amount, std::memory_order_relaxed); //maximize performance, relax ordering
+    //if (amount > 1){ // heuristic optimization: if the item only occurs once in delegationfilter, it is probably outlier.  
+    localThreadData->frequentItems->Insert(bigN+amount,1000,key,amount);
+    //}
+}
 int shouldQuery(threadDataStruct *ltd){
     return (my_random(&(ltd->seeds[0]), &(ltd->seeds[1]), &(ltd->seeds[2])) % 1000);
 }
-
 void serveDelegatedInserts(threadDataStruct * localThreadData){
     #if USE_LIST_OF_FILTERS
     // Check if needed?
@@ -91,7 +101,11 @@ void serveDelegatedInserts(threadDataStruct * localThreadData){
         for (int i=0; i<FILTER_SIZE;i++){
             int key = filter->filter_id[i];
             unsigned int count = filter->filter_count[i];
+            #if LOSSY || STICKY
+            insertCountingFrequency(localThreadData,key,count);
+            #endif
             insertFilterNoWriteBack(localThreadData, key, count);
+            
             // flush each element
             filter->filter_id[i] = -1;
             filter->filter_count[i] = 0;
@@ -111,6 +125,9 @@ void serveDelegatedInserts(threadDataStruct * localThreadData){
             for (int i=0; i<FILTER_SIZE;i++){
                 int key = filter->filter_id[i];
                 unsigned int count = filter->filter_count[i];
+                #if LOSSY || STICKY
+                insertCountingFrequency(localThreadData,key,count);
+                #endif
                 insertFilterNoWriteBack(localThreadData, key, count);
                 // flush each element
                 filter->filter_id[i] = -1;
@@ -173,6 +190,9 @@ void serveDelegatedInsertsAndQueries(threadDataStruct *localThreadData){
 
 static inline void delegateInsert(threadDataStruct * localThreadData, unsigned int key, unsigned int increment, int owner){
     if (owner == localThreadData->tid){
+        #if LOSSY ||STICKY
+        insertCountingFrequency(localThreadData,key,increment);
+        #endif
         insertFilterNoWriteBack(localThreadData, key, increment); 
         return;
     }
@@ -308,7 +328,9 @@ void threadWork(threadDataStruct *localThreadData)
             }
             else{
                 numInserts++;
-                #if DELEGATION_FILTERS
+                #if SINGLE
+                insertCountingFrequency(localThreadData, key, 1); // insert into the single threaded counting algo.
+                #elif DELEGATION_FILTERS
                 serveDelegatedInserts(localThreadData);
                 //int old_owner = key - numberOfThreads * libdivide::libdivide_s32_do((uint32_t)key, fastDivHandle);
                 int owner = findOwner(key);
@@ -469,24 +491,28 @@ int main(int argc, char **argv)
     int DIST_TYPE;
     double DIST_PARAM, DIST_SHUFF;
 
+    /*TOPK*/
+    int COUNTING_PARAM;
+    /*TOPK*/
+
     int runs_no;
 
     double agms_est, fagms_est, fc_est, cm_est;
 
     int i, j;
 
-    if ((argc != 12) && (argc != 13))
+    if ((argc != 13) && (argc != 14))
     {
-        printf("Usage: sketch_compare.out dom_size tuples_no buckets_no rows_no DIST_TYPE DIST_PARAM DIST_DECOR runs_no num_threads querry_rate duration(in sec, 0 means one pass over the data), (optional) input_file_name \n");
+        printf("Usage: sketch_compare.out dom_size tuples_no buckets_no rows_no DIST_TYPE DIST_PARAM DIST_DECOR runs_no num_threads querry_rate duration(in sec, 0 means one pass over the data) counting_algo_type COUNTING_PARAM, (optional) input_file_name \n");
         exit(1);
     }
     int use_real_data = 0;
     char input_file_name[1024];
     vector<unsigned int> * input_data;
     int input_length;
-    if (argc==13){
+    if (argc==14){
         use_real_data = 1;
-        strcpy(input_file_name,argv[12]);
+        strcpy(input_file_name,argv[13]);
         input_data = read_ints(input_file_name, &input_length);
     }
 
@@ -509,6 +535,13 @@ int main(int argc, char **argv)
     QUERRY_RATE = atoi(argv[10]);
 
     DURATION = atoi(argv[11]);
+
+    COUNTING_PARAM = atoi(argv[12]);
+
+    //SINGLE = 1;
+    //LOSSY = 1;
+    //STICKY = 0;
+
 
     //srand((unsigned int)time((time_t *)NULL));
     srand(0);
@@ -564,6 +597,18 @@ int main(int argc, char **argv)
         printf("size of the sketch %lu\n",sizeof(Count_Min_Sketch));
         globalSketch = new Count_Min_Sketch(buckets_no, rows_no, cm_cw2b);
         Count_Min_Sketch ** cmArray = (Count_Min_Sketch **) aligned_alloc(64, numberOfThreads * sizeof(Count_Min_Sketch *));
+        int k=COUNTING_PARAM;
+        CountingAlgorithm ** freqItemsArray = (CountingAlgorithm **) aligned_alloc(64,numberOfThreads * sizeof(CountingAlgorithm *));
+        #if LOSSY
+        for (i=0; i<numberOfThreads; i++){
+            freqItemsArray[i] = new LossyCounting(k);
+        }
+        #elif STICKY
+                for (i=0; i<numberOfThreads; i++){
+            freqItemsArray[i] = new LossyCounting(k); // fix sticky sampling
+        }
+        #endif
+
         for (i=0; i<numberOfThreads; i++){
             cmArray[i] = new Count_Min_Sketch(buckets_no, rows_no, cm_cw2b);
             cmArray[i]->SetGlobalSketch(globalSketch);
@@ -582,8 +627,9 @@ int main(int argc, char **argv)
                 hist1[(*r1->tuples)[i]]++;
             }
         }
-
-        initThreadData(cmArray,r1);
+        // modified this for topk:
+        initThreadData(cmArray,freqItemsArray,r1);
+        //initThreadData(cmArray,r1);
         spawnThreads();
         barrier_cross(&barrier_global);        
         #if PREINSERT
@@ -601,7 +647,7 @@ int main(int argc, char **argv)
         stopTime();
 
         postProcessing();
-
+        
         printf("Total insertion time (ms): %lu\n",getTimeMs());
         long int totalElementsProcessed = 0;
         for (i=0; i<numberOfThreads; i++){

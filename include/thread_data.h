@@ -7,6 +7,7 @@
 #include "relation.h"
 #include "sketches.h"
 #include "libdivide.h"
+#include "countingalgorithms.h"
 //#include "cm_benchmark.h"
 
 #define FILTER_SIZE 16
@@ -72,8 +73,15 @@ typedef struct
     int numInserts;
     Count_Min_Sketch ** sketchArray;
     Count_Min_Sketch * theGlobalSketch;
+    /*TOPK*/
+    CountingAlgorithm* frequentItems;
+    CountingAlgorithm** frequentItemsArray;
+    /*TOPK*/
 }threadDataStruct;
 
+/*TOPK*/
+std::atomic<uint64_t> N(0); // keep track of stream size across threads
+/*TOPK*/
 Count_Min_Sketch * globalSketch;
 int numberOfThreads;
 threadDataStruct * threadData;

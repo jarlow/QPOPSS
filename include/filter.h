@@ -4,6 +4,7 @@
 #include "sketches.h"
 #include "thread_data.h"
 #include "cm_benchmark.h"
+#include <emmintrin.h>
 
 #define MAX_FILTER_SLACK 5
 

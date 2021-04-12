@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-void initThreadData(Count_Min_Sketch ** sketchArray, Relation * relation){
+void initThreadData(Count_Min_Sketch ** sketchArray, CountingAlgorithm ** freqItemsArray, Relation * relation){
     int i;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
@@ -20,15 +20,22 @@ void initThreadData(Count_Min_Sketch ** sketchArray, Relation * relation){
 
     threadIds = (int *) calloc(numberOfThreads, sizeof(int));
     threadData = (threadDataStruct *) calloc(numberOfThreads, sizeof(threadDataStruct));
+
     for (i=0; i<numberOfThreads; ++i){
+        //printf("madeit!\n");
         threadData[i].tid = i;
         threadIds[i] = i;
         threadData[i].theSketch = sketchArray[i];
         threadData[i].sketchArray  = sketchArray;
+        /*TOPK*/
+        threadData[i].frequentItems = freqItemsArray[i];
+        threadData[i].frequentItemsArray = freqItemsArray;
+        /*TOPK*/
         threadData[i].theGlobalSketch = globalSketch;
         threadData[i].theData = relation;
         threadData[i].elementsProcessed = 0;
     }
+
 }
 
 void spawnThreads(){
