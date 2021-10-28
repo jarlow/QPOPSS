@@ -10,7 +10,7 @@ import numpy as np
 from scipy.special import zeta
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.lines import Line2D
-from plotters import average_and_std, read_accuracy, parse_file_memory, format_float, saveplots,showplots,datasets,fancy_dataset_names,names,fancy_names
+from plotters import average_and_std, parse_accuracy, parse_memory, format_float, saveplots_flag,showplots_flag,datasets,fancy_dataset_names,names,fancy_names
 
 #Matplotlib aesthetic parameters:
 matplotlib.rcParams['figure.figsize'] = (11, 6)  # Dense info resolution
@@ -51,7 +51,7 @@ def crate_accuracy_results_df(algorithm_names,streamlens,df_max_uniques,df_max_s
                                     for z in srs:
                                         globname="logs/var_"+x_axis_name+"*" + n[0] + "_" + n[1] + "_accuracy_"+str(t)+"_"+ str(z)+"_"+str(format_float(phi))+"_"+str(m)+"_"+str(u)+"_"+str(N)+"_"+experiment_name+ds+"_accuracy.log"
                                         file=glob.glob(globname)[0]
-                                        prec, rec, are = read_accuracy(file)
+                                        prec, rec, are = parse_accuracy(file)
                                         pavg, pstd = average_and_std(prec, REPS)
                                         ravg, rstd = average_and_std(rec, REPS)
                                         areavg, arestd = average_and_std(are, REPS)
@@ -63,7 +63,7 @@ def crate_accuracy_results_df(algorithm_names,streamlens,df_max_uniques,df_max_s
                                         space=np.nan                  
                                         if space_flag:
                                             fname_memory = glob.glob("logs/var_skew_*" + n[0] + "_" + n[1] + "_accuracy_*_" + str(z)+"_"+str(format_float(phi))+"_"+str(m)+"_"+str(u)+"_"+str(N)+"_memory.log")[0]
-                                            space, counters = parse_file_memory(fname_memory)
+                                            space, counters = parse_memory(fname_memory)
                                         accudf.loc[len(accudf.index)] = [z,fancy_names[names.index(algname)],scinotation,u,m,pavg,ravg,areavg,t,phi_fancy,fancy_dataset_names[datasets.index(ds)],float(space),float(counters)]
     return accudf
 
@@ -105,10 +105,10 @@ if vs_N:
     plt.xlabel("Skew")
     plt.ylabel("Average Relative Error")
     plt.tight_layout()
-    name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_avg_rel_error_final_varyN.svg"
-    if saveplots:
+    name = "plots/vs_avg_rel_error_final_varyN.svg"
+    if saveplots_flag:
         plt.savefig(name, format="svg", dpi=4000)
-    if showplots:
+    if showplots_flag:
         plt.show()
     plt.cla()
     plt.clf()
@@ -149,10 +149,10 @@ if vs_N:
     fig.tight_layout()
     plt.subplots_adjust(top=0.83)
 
-    name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_recall_final_varyN.svg"
-    if saveplots:
+    name = "plots/vs_recall_final_varyN.svg"
+    if saveplots_flag:
         plt.savefig(name, format="svg", dpi=4000)
-    if showplots:
+    if showplots_flag:
         plt.show()
     plt.cla()
     plt.clf
@@ -195,10 +195,10 @@ if vs_dfu_dfs:
     ax.set_ylabel("Skew")
     ax.set_zlabel("Average Relative Error")
     plt.tight_layout()
-    name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_avgrel_finalVarydfsdfu.svg"
-    if saveplots:
+    name = "plots/vs_avgrel_finalVarydfsdfu.svg"
+    if saveplots_flag:
         plt.savefig(name, format="svg", dpi=4000)
-    if showplots:
+    if showplots_flag:
         plt.show()
     plt.cla()
     plt.clf()
@@ -217,10 +217,10 @@ if vs_dfu_dfs:
     ax.set_ylabel("Skew")
     ax.set_zlabel("Precision")
 
-    name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_precision_finalVarydfsdfu.svg"
-    if saveplots:
+    name = "plots/vs_precision_finalVarydfsdfu.svg"
+    if saveplots_flag:
         plt.savefig(name, format="svg", dpi=4000)
-    if showplots:
+    if showplots_flag:
         plt.show()
     plt.cla()
     plt.clf()
@@ -239,10 +239,10 @@ if vs_dfu_dfs:
     ax.set_xlabel("Skew")
     ax.set_zlabel("Recall")
 
-    name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_recall_finalVarydfsdfu.svg"
-    if saveplots:
+    name = "plots/vs_recall_finalVarydfsdfu.svg"
+    if saveplots_flag:
         plt.savefig(name, format="svg", dpi=4000)
-    if showplots:
+    if showplots_flag:
         plt.show()
     plt.cla()
     plt.clf()
@@ -303,10 +303,10 @@ if vs_phi:
     fig.legend(handles=legend_elements, loc="upper center", title=r"$\phi$")
     
     plt.tight_layout()
-    name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_space_finalVaryQRPhi.svg"
-    if saveplots:
+    name = "plots/vs_space_finalVaryQRPhi.svg"
+    if saveplots_flag:
         plt.savefig(name, format="svg", dpi=4000)
-    if showplots:
+    if showplots_flag:
         plt.show()
     plt.cla()
     plt.clf()
@@ -327,10 +327,10 @@ if vs_phi:
                ncol=4, borderaxespad=0, labelspacing=0)
     plt.tight_layout()
     plt.subplots_adjust(top=0.83)
-    name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_precision_finalVaryQRPhi.svg"
-    if saveplots:
+    name = "plots/vs_precision_finalVaryQRPhi.svg"
+    if saveplots_flag:
         plt.savefig(name, format="svg", dpi=4000, bbox_inches='tight')
-    if showplots:
+    if showplots_flag:
         plt.show()
     plt.cla()
     plt.clf()
@@ -363,10 +363,10 @@ if vt_phi:
     plt.xticks([4, 8, 12, 16, 20, 24])
     plt.tight_layout()
     plt.subplots_adjust(top=0.83)
-    name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vt_precision_and_avgre_final.svg"
-    if saveplots:
+    name = "plots/vt_precision_and_avgre_final.svg"
+    if saveplots_flag:
         plt.savefig(name, format="svg", dpi=4000)
-    if showplots:
+    if showplots_flag:
         plt.show()
     plt.cla()
     plt.clf()

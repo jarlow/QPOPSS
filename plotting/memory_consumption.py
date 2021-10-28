@@ -2,14 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
-
-showplots = True
-saveplots = False
-
-''' plots the overhead memory used by Delegation Space-Saving '''
-
+from plotters import saveplots_flag,showplots_flag
 
 def plot_overhead():
+    ''' plots the overhead memory used by Delegation Space-Saving '''
     threads = range(1, 128)
     df_us = range(1, 128)
 
@@ -31,19 +27,16 @@ def plot_overhead():
     colmap = cm.ScalarMappable(cmap=plt.cm.viridis)
     colmap.set_array(zs)
     fig.colorbar(colmap, ax=ax, location="right", shrink=0.7, pad=0)
-    name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_avgrel_finalVarydfsdfu.svg"
-    if saveplots:
+    name = "plots/vs_avgrel_finalVarydfsdfu.svg"
+    if saveplots_flag:
         plt.savefig(name, format="svg", dpi=4000)
-    if showplots:
+    if showplots_flag:
         plt.show()
     plt.cla()
     plt.clf()
 
-
-'''Plot memory usage by Space-Saving and Delegation Space-Saving'''
-
-
 def plot_memory_usage():
+    '''Plot memory usage by Space-Saving and Delegation Space-Saving'''
     threads = range(1, 128)
     skew = np.arange(1, 3.1, 0.1)
     eps = 0.000001
@@ -73,10 +66,10 @@ def plot_memory_usage():
     colmap = cm.ScalarMappable(cmap=plt.cm.viridis)
     colmap.set_array(zs)
     fig.colorbar(colmap, ax=ax, location="right", shrink=0.7, pad=0)
-    name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_avgrel_finalVarydfsdfu.svg"
-    if saveplots:
+    name = "plots/vs_avgrel_finalVarydfsdfu.svg"
+    if saveplots_flag:
         plt.savefig(name, format="svg", dpi=4000)
-    if showplots:
+    if showplots_flag:
         plt.gcf()
         plt.show()
     plt.cla()

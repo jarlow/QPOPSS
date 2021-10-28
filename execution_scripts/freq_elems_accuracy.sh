@@ -21,8 +21,8 @@ vt=true # Vary threads
 ### Sources of data
 declare -A datasets
 datasets[" "]=""
-datasets["caida_dst_ip"]="/home/victor/git/DelegationSketchTopK-singlequery/caida_dst_ip.txt"
-datasets["caida_dst_port"]="/home/victor/git/DelegationSketchTopK-singlequery/caida_dst_port.txt"
+datasets["caida_dst_ip"]="/home/victor/git/DelegationSpace-Saving/caida_dst_ip.txt"
+datasets["caida_dst_port"]="/home/victor/git/DelegationSpace-Saving/caida_dst_port.txt"
 
 EPSILONratio="0.1" 
 

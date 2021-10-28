@@ -46,8 +46,8 @@ EPSILONratio="0.1"
 
 
 #Real Data
-#filename="/home/victor/git/DelegationSketchTopK-singlequery/caida_dst_ip.txt"
-#filename="/home/victor/git/DelegationSketchTopK-singlequery/caida_dst_port.txt"
+#filename="/home/victor/git/DelegationSpace-Saving/caida_dst_ip.txt"
+#filename="/home/victor/git/DelegationSpace-Saving/caida_dst_port.txt"
 #Synthetic data 
 filename="" #keep empty if synthetic
 topk_rates="1000"

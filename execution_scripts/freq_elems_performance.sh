@@ -25,14 +25,13 @@ vt=true
 ### Sources of data
 declare -A datasets
 datasets[" "]=""
-datasets["caida_dst_ip"]="/home/victor/git/DelegationSketchTopK-singlequery/caida_dst_ip.txt"
-datasets["caida_dst_port"]="/home/victor/git/DelegationSketchTopK-singlequery/caida_dst_port.txt"
+datasets["caida_dst_ip"]="/home/victor/git/DelegationSpace-Saving/caida_dst_ip.txt"
+datasets["caida_dst_port"]="/home/victor/git/DelegationSpace-Saving/caida_dst_port.txt"
 
 K="55555"
 EPSILONratio="0.1"
 reps=2
 num_reps=$(seq $reps)
-versions="cm_spacesaving_deleg"
 
 num_counters_deleg (){
     eps=$1
@@ -69,6 +68,7 @@ MAX_FILTER_UNIQUES="16 32 64 128"
 skew_rates="0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75 3"
 phis="0.00001"
 topkqueriesS="100"
+versions="cm_spacesaving_deleg"
 echo "------ Vary Skew, df_s and df_u ------"
 if [ "$vsdfsdfu" = true ] ; then
     for version in $versions
@@ -230,8 +230,8 @@ if [ "$vt" = true ] ; then
                                 do
                                     new_columns=$(((buckets*rows*4 - num_thr*64)/(rows*4))) 
                                     echo "$stream_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topkrates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filepath"
-                                    output=$(./bin/"$version".out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds "$calgo_param" "$topkrates" $K "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filepath 2>error.txt ) 
-                                    echo "$output" | grep -oP 'Total processing throughput [+-]?[0-9]+([.][0-9]+)?+' -a --text >> logs/threads_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_phiqr"${dsname}"_throughput.log
+                                    output=$(./bin/"$version".out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 "$num_thr" $queries $num_seconds "$calgo_param" "$topkrates" $K "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filepath 2>error.txt ) 
+                                    echo "$output" | grep -oP 'Total processing throughput [+-]?[0-9]+([.][0-9]+)?+' -a --text >> logs/threads_"${version}"_"${num_thr}"_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_phiqr"${dsname}"_throughput.log
                                     #echo "$output" | grep -oP 'topk percentage \K([0-9]+\.[0-9]+)' >> logs/skew_${version}_${num_thr}_threads_${topkrates}_queries_${phi}_phi_${MAX_FILTER_SUM}_dfsum_numqueries_final${filename}.log
                                     #echo "$output" | grep -oP 'num Inserts \K([0-9]+)' >> logs/skew_${version}_${num_thr}_threads_${topkrates}_queries_${phi}_phi_${MAX_FILTER_SUM}_dfsum_streamlength_final${filename}.log
                                     #echo "$output" | grep -oP 'num topk \K([0-9]+)' >> logs/skew_${version}_${num_thr}_threads_${topkrates}_queries_${phi}_phi_${MAX_FILTER_SUM}_dfsum_numqueriesabs_final${filename}.log

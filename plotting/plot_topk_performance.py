@@ -6,7 +6,7 @@ import matplotlib
 import glob
 from matplotlib.lines import Line2D
 from math import log10
-from plotters import average_and_std,read_perf,format_float,names,fancy_names,datasets,fancy_dataset_names,showplots,saveplots
+from plotters import average_and_std,parse_throughput,format_float,names,fancy_names,datasets,fancy_dataset_names,showplots_flag,saveplots_flag
 
 #Matplotlib aesthetic parameters:
 matplotlib.rcParams['figure.figsize'] = (11, 6)  # Dense info resolution
@@ -53,7 +53,7 @@ def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_u
                                     for z in srs:
                                         globname="logs/"+x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_throughput.log"
                                         file=glob.glob(globname)[0]
-                                        data = read_perf(file)
+                                        data = parse_throughput(file)
                                         tpavg, tpstd = average_and_std(data, REPS)      
                                         speedup = np.nan
                                         if speedup_flag:
@@ -105,9 +105,9 @@ if vs_dfu_dfs:
         ax.set_ylabel("Throughput (Million Inserts/sec)")
         fig.legend(ncol=2, bbox_to_anchor=(0.9, 0.43), loc="center right")
         name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_performance_throughput_final_dfu_dfs.svg"
-        if saveplots:
+        if saveplots_flag:
             plt.savefig(name, format="svg", dpi=4000)
-        if showplots:
+        if showplots_flag:
             plt.show()
         plt.clf()
         plt.cla()
@@ -140,9 +140,9 @@ if vs_phi_qr:
         name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_performance_throughput_finalphiqr_no_quer.svg"
         ax.set_ylim([-1, 700])
         plt.subplots_adjust(top=0.83)
-        if saveplots:
+        if saveplots_flag:
             plt.savefig(name, format="svg", dpi=4000)
-        if showplots:
+        if showplots_flag:
             plt.show()
         plt.clf()
         plt.cla()
@@ -162,9 +162,9 @@ if vs_phi_qr:
         name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_performance_throughput_finalphiqr_no_quer.svg"
         plt.subplots_adjust(top=0.83)
         name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_performance_throughput_finalphiqr_0.1_quer.svg"
-        if saveplots:
+        if saveplots_flag:
             plt.savefig(name, format="svg", dpi=4000)
-        if showplots:
+        if showplots_flag:
             plt.show()
         plt.clf()
         plt.cla()
@@ -215,9 +215,9 @@ if vs_phi_qr:
         axs[2].grid(axis="y")
         plt.tight_layout()
         plt.subplots_adjust(top=0.83)
-        if saveplots:
+        if saveplots_flag:
             plt.savefig(name, format="svg", dpi=4000)
-        if showplots:
+        if showplots_flag:
             plt.show()
         plt.clf()
         plt.cla()
@@ -235,9 +235,9 @@ if vs_phi_qr:
         catplot.fig.get_axes()[1].set_yticks(list(range(4, 15)))
         plt.ylabel("Speedup")
         name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vp_performance_speedup_finalreal.svg"
-        if saveplots:
+        if saveplots_flag:
             plt.savefig(name, format="svg", dpi=4000)
-        if showplots:
+        if showplots_flag:
             plt.show()
         plt.clf()
         plt.cla()
@@ -263,9 +263,9 @@ if vt_phi_qr:
         plt.ylabel("Throughput (Million Inserts/sec)")
         plt.tight_layout()
         name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vt_performance_throughput_finalphiqr.svg"
-        if saveplots:
+        if saveplots_flag:
             plt.savefig(name, format="svg", dpi=4000)
-        if showplots:
+        if showplots_flag:
             plt.show()
         plt.clf()
         plt.cla()
@@ -318,9 +318,9 @@ if vt_phi_qr:
             axs[2].grid(axis="y")
             plt.tight_layout()
             plt.subplots_adjust(top=0.83)
-            if saveplots:
+            if saveplots_flag:
                 plt.savefig(name, format="svg", dpi=4000)
-            if showplots:
+            if showplots_flag:
                 plt.show()
             plt.clf()
             plt.cla()

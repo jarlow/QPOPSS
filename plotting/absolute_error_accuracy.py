@@ -1,7 +1,7 @@
 import glob
 import matplotlib.pyplot as plt
 import seaborn as sns
-from plotters import parse_file, ARE, fancy_names,names, saveplots, showplots
+from plotters import parse_accuracy_histogram, absolute_error, fancy_names, names, saveplots_flag, showplots_flag
 zipf = [1.25, 2.25]
 u = 64
 m = 1000
@@ -10,7 +10,6 @@ streamlen = 30000000
 leg = False
 fig, (axx1, axx2) = plt.subplots(1, 2)
 for z in zipf:
-    #fig,ax = plt.subplots()
     if (z == 1.25):
         ax2 = plt.axes([0.25, 0.35, .16, .12])
         ax2.set_title('zoom')
@@ -36,8 +35,8 @@ for z in zipf:
         n=name.split(' ')
         globname="logs/var_skew*" + n[0] + "_" + n[1] + "_accuracy_*_" + str(z)+"_*"+str(m)+"_"+str(u)+"_"+str(streamlen)+"_varN_histogram.log"
         fname = glob.glob(globname)[0]
-        res, N, PHI = parse_file(fname)
-        returnval = ARE(res, N, PHI)
+        res, N, PHI = parse_accuracy_histogram(fname)
+        returnval = absolute_error(res, N, PHI)
         if returnval == []:
             continue
         ys = list(zip(*returnval))[1]
@@ -68,10 +67,10 @@ fig.legend(handles[:3], labels[:3], loc='upper center',
            mode="expand", ncol=3, fontsize=20)
 plt.tight_layout()
 plt.subplots_adjust(top=0.83)
-name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_abserror" + str(z)+".svg"
-if saveplots:
+name = "plots/vs_abserror" + str(z)+".svg"
+if saveplots_flag:
     plt.savefig(name, format="svg", dpi=4000)
-if showplots:
+if showplots_flag:
     plt.show()
 plt.cla()
 plt.clf()

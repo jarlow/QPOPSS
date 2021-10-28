@@ -2,17 +2,18 @@ import pandas as pd
 from math import ceil
 import numpy as np
 
+''' Constants '''
 names = ["spacesaving single", "spacesaving deleg"]
 fancy_names = ["Single Space-Saving","Delegation Space-Saving"]
 
 datasets = ["", "caida_dst_ip", "caida_dst_port"]
 fancy_dataset_names = ["Zipf", "CAIDA Dest. IPv4", "CAIDA Dest. Port"]
 
-showplots = True
-saveplots = False
+showplots_flag = True
+saveplots_flag = False
+''' ######### '''
 
-
-def read_perf(filename):
+def parse_throughput(filename):
     returnList = []  
     with open(filename,'r') as f:
         for line in f:
@@ -20,27 +21,35 @@ def read_perf(filename):
             returnList.append(perf)
     return returnList
 
-def parse_file(filename):
+def parse_accuracy_histogram(filename):
+    ''' Reads a histogram result file and outputs a list of lists of the form ([true_rank,true_count,estimate_rank,estimate_count], streamlength, phi value )
+
+    Parameters
+    ----------
+    filename : str  
+        the name of the histogram file to be parsed
+
+    Returns
+    ----------
+    3-tuple
+        ([true_rank,true_count,estimate_rank,estimate_count], streamlength, phi value )
+    '''
     file1 = open(filename, 'r')
     lines = file1.readlines()
     allLines = list()
-    truth = list()
-    estimate = list()
-    N, K, Phi = lines[0].split()
+    N, _, Phi = lines[0].split()
     for line in lines[1:]:
         content = line.split()
         allLines.append(content)
     return allLines, int(N), float(Phi)
 
-
-def parse_file_memory(filename):
+def parse_memory(filename):
     file1 = open(filename, 'r')
     lines = file1.readlines()
     bytes, counters = lines[0].split()
     return bytes, counters
 
-
-def read_accuracy(filename):
+def parse_accuracy(filename):
     precs = []
     recs = []
     ares = []
@@ -55,7 +64,6 @@ def read_accuracy(filename):
             ares.append(are)
     return precs, recs, ares
 
-
 def average_and_std(l, reps):
     ret_avg = []
     ret_std = []
@@ -68,43 +76,23 @@ def average_and_std(l, reps):
         index += reps
     return ret_avg, ret_std
 
-
-def subsample(x):
-    if (len(x) % 2) == 0:
-        return x[0::2]+[x[-1]]
-    else:
-        return x[0::2]
-
-
 def phiprecision(res, N, PHI):
+    ''' !Not used! calculates precision from returned set and ground truth histogram '''
     truth = [line[1] for line in res if int(
         line[2]) >= ceil(N*PHI)]  # take ceil() of N*phi
     elements = [line[3] for line in res if line[3] != '4294967295']
     true_positives = [e for e in elements if e in truth]
     return 1 if len(elements) == 0 else len(true_positives)/len(elements)
 
-
 def phirecall(res, N, PHI):
+    ''' !Not used! calculates recall from returned set and ground truth histogram '''
     truth = [line[1] for line in res if int(line[2]) >= ceil(N*PHI)]
     elements = [line[3] for line in res if line[3] != '4294967295']
     true_positives = [e for e in elements if e in truth]
     return 1 if len(elements) == 0 else len(true_positives)/len(truth)
 
-
-def topknum_correct(res, N, PHI):
-    tp = 0
-    fp = 0
-    truth = [line[1] for line in res if int(line[2]) > N*PHI]
-    for i in range(len(truth)):
-        if res[i][3] != '4294967295':
-            if res[i][5] == '1':
-                tp += 1
-            else:
-                fp += 1
-    return 0 if tp+fp == 0 else tp/(tp+fp)
-
-
-def AvgRelativeError(res, N, PHI):
+def avg_relative_error(res, N, PHI):
+    ''' !Not used! calculates average relative error from returned set and ground truth histogram '''
     avg_re = 0
     num_res = 0
     truth = [(line[1], int(line[2]))
@@ -118,9 +106,17 @@ def AvgRelativeError(res, N, PHI):
                 num_res += 1
     return 0 if num_res == 0 else avg_re/num_res
 
+def absolute_error(res, N, PHI):
+    ''' Absolute error of a set of elements. 
+    Returns one absolute error per tuple in the set.
 
-# Absolute relative error
-def ARE(res, N, PHI):
+
+    Parameters
+    ----------
+    res :  
+        A set of (element,count) tuples
+    
+      '''
     df = pd.DataFrame(columns=['abs error', 'true_value'])
     for r in res:
         elem = r[3]
@@ -131,7 +127,8 @@ def ARE(res, N, PHI):
                 if elem == t[1]:
                     truth = int(t[2])
                     estimate = int(r[4])
-                    are =  abs(truth-estimate) # abs(1-(estimate/truth)) 
+                    #are = abs(1-(estimate/truth)) #Absolute relative error
+                    are =  abs(truth-estimate) #Absolute error
                     df.loc[elem] = [are, truth]
                     break
     df.sort_values('true_value', inplace=True, ascending=False)
