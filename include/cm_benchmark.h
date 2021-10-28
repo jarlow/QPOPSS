@@ -40,12 +40,28 @@
 #define USE_LIST_OF_FILTERS 0
 #endif
 
-#ifndef LOSSY
-#define LOSSY 0
+#ifndef FREQUENT
+#define FREQUENT 0
 #endif
 
-#ifndef STICKY
-#define STICKY 0
+#ifndef SPACESAVING
+#define SPACESAVING 0
+#endif
+
+#ifndef FILTERONES
+#define FILTERONES 0
+#endif
+
+#ifndef SINGLE
+#define SINGLE 0
+#endif
+
+#ifndef DEBUG
+#define DEBUG 0
+#endif
+
+#ifndef ACCURACY
+#define ACCURACY 0
 #endif
 
 #ifndef ITHACA
@@ -53,7 +69,9 @@
 #endif
 
 int QUERRY_RATE;
+int TOPK_QUERY_RATE;
 int DURATION;
+int COUNTING_PARAM;
 void * threadEntryPoint(void * threadArgs);
 void insert(threadDataStruct * localThreadData, unsigned int key, unsigned int increment);
 #endif

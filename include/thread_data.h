@@ -7,24 +7,27 @@
 #include "relation.h"
 #include "sketches.h"
 #include "libdivide.h"
-#include "countingalgorithms.h"
-//#include "cm_benchmark.h"
+#include <unordered_set>
+#include "lossycount.h"
 
-#define FILTER_SIZE 16
+//#define FILTER_SIZE 64
 
 typedef struct Filter_T{
-    alignas(32) int filter_id[FILTER_SIZE];
-    volatile unsigned int filter_count[FILTER_SIZE];
-    unsigned int filter_old_count[FILTER_SIZE];
-    volatile int filterCount;
+    uint32_t *filter_id;
+    uint32_t *filter_count;
+    struct alignas(64){
+        volatile int filterCount=0;
+    };
+    struct alignas(64){
+        volatile int filterSum=0;
+    };
     Filter_T * volatile next;
-    char padding[64-4]; // Need to figure out why it breaks for some sizes
-    volatile int filterFull; 
-    char padding2[64-4]; // Need to figure out why it breaks for some sizes
+    struct alignas(64){
+        volatile int filterFull=0;
+    };
 }FilterStruct;
 
 void push(FilterStruct * filter, FilterStruct * volatile * headPointer){
-
     FilterStruct * volatile oldHead = *headPointer;
     filter->next = oldHead;
     while(! __sync_bool_compare_and_swap (headPointer, oldHead, filter)){
@@ -43,8 +46,15 @@ FilterStruct * pop(FilterStruct * volatile * headPointer){
     return oldHead;
 }
 
+
 typedef struct
 {
+    uint64_t numInsertedFilters=0;
+    uint64_t accumFilters=0;
+    vector<pair<uint32_t,uint32_t>> lasttopk; 
+    LCL_type* ss; //Space-Saving instance
+    std::unordered_set<int> * uniques;
+    uint64_t num_uniques=0;
     int tid;
     Count_Min_Sketch * theSketch;
     Relation * theData;
@@ -61,6 +71,7 @@ typedef struct
     int * pendingQueriesKeys; // need volatiles?
     unsigned int * pendingQueriesCounts;
     volatile int * pendingQueriesFlags;
+    volatile float * pendingTopKQueriesFlags;
     struct{
         volatile int insertsPending;
         char pad1[60];
@@ -71,18 +82,18 @@ typedef struct
     };
     int numQueries;
     int numInserts;
+    int numTopKQueries;
+    uint8_t cachecounter=0; // cachecounter for each thread
+    struct alignas(64){
+        uint64_t counter=0; // counter for each thread
+        char pad3[56];
+    };
     Count_Min_Sketch ** sketchArray;
     Count_Min_Sketch * theGlobalSketch;
-    /*TOPK*/
-    CountingAlgorithm* frequentItems;
-    CountingAlgorithm** frequentItemsArray;
-    /*TOPK*/
+    pthread_mutex_t mutex;
+    int sumcounter=0;
 }threadDataStruct;
 
-/*TOPK*/
-std::atomic<uint64_t> N(0); // keep track of stream size across threads
-//uint64_t bign=0;
-/*TOPK*/
 Count_Min_Sketch * globalSketch;
 int numberOfThreads;
 threadDataStruct * threadData;

@@ -1,74 +1,145 @@
+import pandas as pd
+from math import ceil
 import numpy as np
 
-colors = ['lightgreen','lightsalmon','skyblue','steelblue','mediumseagreen','0.30','0.70','m']
-hatches = ['/','\\\\','x','\\','//']
+names = ["spacesaving single", "spacesaving deleg"]
+fancy_names = ["Single Space-Saving","Delegation Space-Saving"]
 
-def plot_bars(ax,groups,labels,title,legend,to_compare,stdz,show_legend=False, on_top=False):
+datasets = ["", "caida_dst_ip", "caida_dst_port"]
+fancy_dataset_names = ["Zipf", "CAIDA Dest. IPv4", "CAIDA Dest. Port"]
 
-        N = len(labels)
-        ind = np.arange(N)  # the x locations for the groups
-        width = 0.15      # the width of the bars
+showplots = True
+saveplots = False
 
 
+def read_perf(filename):
+    returnList = []  
+    with open(filename,'r') as f:
+        for line in f:
+            perf = float(line.split()[3])
+            returnList.append(perf)
+    return returnList
 
-        baseline = groups[0]
+def parse_file(filename):
+    file1 = open(filename, 'r')
+    lines = file1.readlines()
+    allLines = list()
+    truth = list()
+    estimate = list()
+    N, K, Phi = lines[0].split()
+    for line in lines[1:]:
+        content = line.split()
+        allLines.append(content)
+    return allLines, int(N), float(Phi)
 
-        # add some text for labels, title and axes ticks
-        #ax.set_ylabel('Throughput (Mbps)')
-        #ax.set_ylabel('Execution time (ms)')
-	#ax.set_ylabel("Mops/sec")
-        #ax.set_xlabel(title)
-        #ax.set_xticks(ind + 2*width)
-        ax.set_xticks(ind+1*width)
-        ax.set_xticklabels(labels,rotation='0', fontsize=22)
-        rects_set=[]
-        lgd=[]
-        c=0
-        #bottoms = [0]*len(groups[0])
-        bottoms = [0,0]
-        for i,group in enumerate(groups):
-                series = group
-		print "WOW",series
-		print c
-                stand_dev = stdz[i]
-		print stand_dev
-                #rects = ax.bar(ind, series, 0.8*width , color=colors[c],hatch=hatches[c],yerr=stand_dev, ecolor='black',label=[legend[c]])
-                #rects = ax.bar(ind, series, 1.0*width , color=colors[c],hatch=hatches[c],label=[legend[c]],bottom=bottoms, yerr=stand_dev,ecolor='black')
-                #rects = ax.bar(ind, series, 1.0*width , color=colors[c],hatch=hatches[c], yerr=stand_dev,ecolor='black')
-                rects = ax.bar(ind, series, 1.0*width  ,hatch=hatches[c], yerr=stand_dev,ecolor='black')
-                v = [x.get_height() for x in rects]
-                if (c in to_compare):
-                        vals = np.divide(baseline,v)
-                        #if switch_tp:
-                        vals = np.divide(1,vals)
-                        autolabel(ax,rects,vals,title,legend,c,labels)
-                rects_set.append(rects)
-                if not on_top:
-                    ind = [x+width for x in ind]
-                c+=1
-                if on_top:
-                    bottoms = list(np.array(bottoms)+ np.array(group))
-        if show_legend:
-            #ax.legend((rects_set),legend,loc=2,ncol=2)
-            #ax.legend((rects_set),legend, loc=4,ncol=2)
-            lgd = ax.legend((rects_set),legend,bbox_to_anchor=(0.,1.1,1.00,0.25),loc=2,ncol=2, mode="expand", borderaxespad=0.1,markerscale=12)
-        
-        ax.plot()
-        return lgd
 
-def autolabel(ax,rects,vals,title,legend,c,labels):
-    # attach some text labels
-    f=0
-    for rect,val in zip(rects,vals):
-        height = rect.get_height()
-        if (title=="Snort web traffic patterns(2K)") and (legend[c]=="DFC") and (f==0)and (len(labels)!=1):
-                ax.text(rect.get_x() + rect.get_width()/2., 0.3+height,
-                '%0.2f' % (val),
-                        ha='center', va='bottom')
+def parse_file_memory(filename):
+    file1 = open(filename, 'r')
+    lines = file1.readlines()
+    bytes, counters = lines[0].split()
+    return bytes, counters
+
+
+def read_accuracy(filename):
+    precs = []
+    recs = []
+    ares = []
+    with open(filename, 'r') as f:
+        for line in f:
+            perf = line.split(", ")
+            prec = float(perf[0].split(':')[1])
+            rec = float(perf[1].split(':')[1])
+            are = float(perf[2].split(':')[1])
+            precs.append(prec)
+            recs.append(rec)
+            ares.append(are)
+    return precs, recs, ares
+
+
+def average_and_std(l, reps):
+    ret_avg = []
+    ret_std = []
+    steps = int(len(l)/reps)
+    index = 0
+    for i in range(steps):
+        segment = l[index:index+reps]
+        ret_avg = np.average(segment)
+        ret_std = np.std(segment)
+        index += reps
+    return ret_avg, ret_std
+
+
+def subsample(x):
+    if (len(x) % 2) == 0:
+        return x[0::2]+[x[-1]]
+    else:
+        return x[0::2]
+
+
+def phiprecision(res, N, PHI):
+    truth = [line[1] for line in res if int(
+        line[2]) >= ceil(N*PHI)]  # take ceil() of N*phi
+    elements = [line[3] for line in res if line[3] != '4294967295']
+    true_positives = [e for e in elements if e in truth]
+    return 1 if len(elements) == 0 else len(true_positives)/len(elements)
+
+
+def phirecall(res, N, PHI):
+    truth = [line[1] for line in res if int(line[2]) >= ceil(N*PHI)]
+    elements = [line[3] for line in res if line[3] != '4294967295']
+    true_positives = [e for e in elements if e in truth]
+    return 1 if len(elements) == 0 else len(true_positives)/len(truth)
+
+
+def topknum_correct(res, N, PHI):
+    tp = 0
+    fp = 0
+    truth = [line[1] for line in res if int(line[2]) > N*PHI]
+    for i in range(len(truth)):
+        if res[i][3] != '4294967295':
+            if res[i][5] == '1':
+                tp += 1
+            else:
+                fp += 1
+    return 0 if tp+fp == 0 else tp/(tp+fp)
+
+
+def AvgRelativeError(res, N, PHI):
+    avg_re = 0
+    num_res = 0
+    truth = [(line[1], int(line[2]))
+             for line in res if int(line[2]) >= ceil(N*PHI)]
+    elements = [(line[3], int(line[4]))
+                for line in res if line[3] != '4294967295']
+    for (elem, count) in elements:
+        for (elem2, truecount) in truth:
+            if elem == elem2:
+                avg_re += abs(1-(count/truecount))
+                num_res += 1
+    return 0 if num_res == 0 else avg_re/num_res
+
+
+# Absolute relative error
+def ARE(res, N, PHI):
+    df = pd.DataFrame(columns=['abs error', 'true_value'])
+    for r in res:
+        elem = r[3]
+        if elem == '-1':
+            break
         else:
-                ax.text(rect.get_x() + rect.get_width()/2., 0.1+height,
-                '%0.2f' % (val),
-                        ha='center', va='bottom')
+            for t in res:
+                if elem == t[1]:
+                    truth = int(t[2])
+                    estimate = int(r[4])
+                    are =  abs(truth-estimate) # abs(1-(estimate/truth)) 
+                    df.loc[elem] = [are, truth]
+                    break
+    df.sort_values('true_value', inplace=True, ascending=False)
+    df.drop('true_value', axis=1, inplace=True)
+    returnlist = []
+    for index, row in df.iterrows():
+        returnlist.append((index, row['abs error']))
+    return returnlist
 
-        f+=1
-
+def format_float(num):
+    return np.format_float_positional(num, trim='-')
