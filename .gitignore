@@ -1,6 +1,0 @@
-*.o
-*.out
-*.log
-.vscode/
-.vscode/ipch/*
-count_min_results.txt
