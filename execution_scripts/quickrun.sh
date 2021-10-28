@@ -17,7 +17,7 @@ num_counters_deleg (){
     fi
     res=$(echo "e(l(1/($eps * $T))*(1/$a))" | bc -l)
     res=${res%.*}
-    res=$(($res+2))
+    res=$((res+2))
     echo $res
 }
 
@@ -29,7 +29,7 @@ num_counters_single (){
     fi
     res=$(echo "e(l(1/($eps))*(1/$a))" | bc -l)
     res=${res%.*}
-    res=$(($res+2))
+    res=$((res+2))
     echo $res
 }
 

@@ -18,8 +18,8 @@ num_seconds=4
 N=${stream_size}
 
 ### Which experiments to run?
-vsdfsdfu=false
-vs=false
+vsdfsdfu=true
+vs=true
 vt=true
 
 ### Sources of data
@@ -30,7 +30,7 @@ datasets["caida_dst_port"]="/home/victor/git/DelegationSpace-Saving/caida_dst_po
 
 K="55555"
 EPSILONratio="0.1"
-reps=2
+reps=10
 num_reps=$(seq $reps)
 
 num_counters_deleg (){

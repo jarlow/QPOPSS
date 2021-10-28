@@ -4,9 +4,11 @@ CPPDEBUG = g++ -O2 -Wno-deprecated -pthread -std=c++11 -g $(INCLUDE)
 DEPS = thread_data.h thread_utils.h cm_benchmark.h barrier.h data_generator.h gen_scheme.h range_sum.h relation.h RM7_range_sum.h sampling.h sketches.h utils.h xis.h lossycount.h prng.h rand48.h
 BIN = ../bin
 
-all: cm_shared.out cm_local_copies.out cm_hybrid.out cm_remote_inserts.out cm_remote_inserts_mpsc.out cm_remote_inserts_filtered.out cm_shared_filtered.out cm_local_copies_filtered.out cm_augmented_sketch.out cm_delegation_filters.out cm_delegation_filters_with_linked_list.out
+all: freq_elems_performance freq_elems_accuracy
 freq_elems_performance: cm_spacesaving_deleg.out cm_spacesaving_single.out
 freq_elems_accuracy: cm_spacesaving_deleg_accuracy.out cm_spacesaving_single_accuracy.out 
+
+
 
 sketch_sampling:relation.o xis.o sketches.o sampling.o sketch_sampling.o
 	$(CPP) -lgsl -lgslcblas -o sketch_sampling.out relation.o xis.o sketches.o sampling.o sketch_sampling.o

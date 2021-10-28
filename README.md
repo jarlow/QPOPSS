@@ -1,38 +1,43 @@
-Delegation Sketch
-------------------------------------
-A parallel design for sketches, that supports concurrent insertions and queries at high rates. Uses Augmented Sketch as the underlying sketch.
+The Delegation Space-Saving algorithm
+----------------------------------
+Master thesis project in Computer Science.
+fulltext pdf of the associated report is available [here](https://gupea.ub.gu.se/handle/2077/69761).
 
-Publication: "Delegation sketch: a parallel design with support for fast and accurate concurrent operations", Charalampos Stylianopoulos, Ivan Walulya, Magnus Almgren, Olad Landsiedel, Marina Papatriantafilou, EuroSys'20, Heraklion, Greece, [pdf](https://dl.acm.org/doi/abs/10.1145/3342195.3387542)
+Heavily influenced by:
 
-Preliminary Instructions
+ - "Delegation sketch: a parallel design with support for fast and accurate concurrent operations", Charalampos Stylianopoulos, Ivan Walulya, Magnus Almgren, Olad Landsiedel, Marina Papatriantafilou, EuroSys'20, Heraklion, Greece, [pdf](https://dl.acm.org/doi/abs/10.1145/3342195.3387542),[github](https://github.com/mpastyl/DelegationSketch)
+
+and 
+
+ - "Efficient Computation of Frequent and Top-k Elements in Data Streams", Ahdmed Metwally, Divyakant Agrawal and Amr El Abbadi,ICDT'05,Edinburgh, UK [pdf](https://link.springer.com/chapter/10.1007%2F978-3-540-30570-5_27) [full pdf](https://cs.ucsb.edu/sites/default/files/documents/2005-23.pdf)
+
+Instructions
 ----------------------------------
 To build:
 
 ```
 mkdir bin
 cd src
-make ITHACA=2
+make
 ```
-It will generate a different binary in bin for every version.
 
-test_performance.sh is a script that builds and runs Delegation Sketch and the other baselines, against different parameters. Can be useful as a usage example.
-
-Set ITHACA=2 for a straightforward thread-to-cpu pinning (i.e. thread 0 is pinned to CPU0). You might want to search for "ITHACA" in src/cm_benchark.cpp and change the mapping there for a more NUMA aware mapping.
+To generate raw result-data and plots:
+```
+mkdir logs plots
+./execution_scripts/freq_elems_performance.sh
+./execution_scripts/freq_elems_accuracy.sh
+python3 plotting/absolute_error_accuracy.py
+python3 plotting/memory_consumption.py
+python3 plotting/accuracy.py
+python3 plotting/performance.py
+```
+The python scripts for generating plots are written in python3 and depend on the packages seaborn,numpy and pandas
 
 Main source files
 ------------------------------
-src/cm_benchmark.cpp contains the benchmark entry point, input and data structure creation, as well as the main processing loop. 
-Also contains the main routines of Delegation Sketch.
+src/cm_benchmark.cpp contains the benchmark entry point, input and data structure creation, as well as the main processing loop.
+Also contains the main routines of the Delegation Space-Saving algorithm.
 
-src/sketches.cpp contains insert/query implementations of the underlying sketch.
+src/lossycount.cpp and include/lossycount.h contains the insertion and frequent elements query implementations of the Space-Saving algorithm (taken from this [website](http://hadjieleftheriou.com/frequent-items/)). The implementation used in this project is the Space-Saving Heap (SSH) implementation mentioned in this [paper](http://hadjieleftheriou.com/papers/vldb08-2.pdf), which is referred to as LCU in the code.
 
-inlude/filter.h contains operations regarding filters, used by Delegation Sketch and Augmented Sketch.
-
-Notes
---------------------------
-A refactoring is on its way...
-
-Acknowledgments
-------------------------------
-Part of the project was based on sketch, hash function and input distribution creation from Florin Rusu https://faculty.ucmerced.edu/frusu/Projects/Sketches/sketches.html  Some documentation on those parts can be found there.
-
+inlude/filter.h contains operations regarding filters, used by the algorithm

@@ -33,7 +33,7 @@ K="55555"
 MAX_FILTER_SUMS="1000"
 MAX_FILTER_UNIQUES="64"
 
-reps=2
+reps=10
 num_reps=$(seq $reps)
 
 skew_rates="0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75 3"
