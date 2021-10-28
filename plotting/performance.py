@@ -6,7 +6,7 @@ import matplotlib
 import glob
 from matplotlib.lines import Line2D
 from math import log10
-from plotters import average_and_std,parse_throughput,format_float,names,fancy_names,datasets,fancy_dataset_names,showplots_flag,saveplots_flag
+from plotters import average_and_std,parse_throughput,format_float,RUNTIME,names,fancy_names,datasets,fancy_dataset_names,showplots_flag,saveplots_flag
 
 #Matplotlib aesthetic parameters:
 matplotlib.rcParams['figure.figsize'] = (11, 6)  # Dense info resolution
@@ -22,11 +22,6 @@ vt_phi_qr = True
 # What is the metric?
 throughput = True
 speedupthroughput = True
-
-# How many times did we repeat each experiment?
-REPS = 2
-# For how long did each repetition execute?
-RUNTIME = 4 
 
 def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_uniques,df_max_sums,threads,skew_rates,phis,experiment_name,dataset_names,x_axis_name,speedup_flag):
     columns = ["Zipf Parameter", "Algorithm","Throughput","Streamlength",
@@ -54,7 +49,7 @@ def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_u
                                         globname="logs/"+x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_throughput.log"
                                         file=glob.glob(globname)[0]
                                         data = parse_throughput(file)
-                                        tpavg, tpstd = average_and_std(data, REPS)      
+                                        tpavg, tpstd = average_and_std(data)      
                                         speedup = np.nan
                                         if speedup_flag:
                                             if n[1] == "deleg":

@@ -10,7 +10,7 @@ import numpy as np
 from scipy.special import zeta
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.lines import Line2D
-from plotters import average_and_std, parse_accuracy, parse_memory, format_float, saveplots_flag,showplots_flag,datasets,fancy_dataset_names,names,fancy_names
+from plotters import average_and_std,parse_accuracy,parse_memory,format_float,saveplots_flag,showplots_flag,datasets,fancy_dataset_names,names,fancy_names
 
 #Matplotlib aesthetic parameters:
 matplotlib.rcParams['figure.figsize'] = (11, 6)  # Dense info resolution
@@ -24,7 +24,6 @@ vs_dfu_dfs = True
 vs_phi = True
 vt_phi = True
 
-REPS = 2
 
 def crate_accuracy_results_df(algorithm_names,streamlens,df_max_uniques,df_max_sums,threads,skew_rates,phis,experiment_name,dataset_names,x_axis_name,space_flag):
     columns=["Zipf Parameter", "Algorithm", "Streamlength", "df_u","df_s",
@@ -52,9 +51,9 @@ def crate_accuracy_results_df(algorithm_names,streamlens,df_max_uniques,df_max_s
                                         globname="logs/var_"+x_axis_name+"*" + n[0] + "_" + n[1] + "_accuracy_"+str(t)+"_"+ str(z)+"_"+str(format_float(phi))+"_"+str(m)+"_"+str(u)+"_"+str(N)+"_"+experiment_name+ds+"_accuracy.log"
                                         file=glob.glob(globname)[0]
                                         prec, rec, are = parse_accuracy(file)
-                                        pavg, pstd = average_and_std(prec, REPS)
-                                        ravg, rstd = average_and_std(rec, REPS)
-                                        areavg, arestd = average_and_std(are, REPS)
+                                        pavg, pstd = average_and_std(prec)
+                                        ravg, rstd = average_and_std(rec)
+                                        areavg, arestd = average_and_std(are)
                                         ''' Scientific notation of streamlength '''
                                         exponent = int(log10(N))
                                         scalar = int(N/(10**exponent))

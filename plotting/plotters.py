@@ -3,6 +3,8 @@ from math import ceil
 import numpy as np
 
 ''' Constants '''
+RUNTIME=4 #For how long did each repetition execute?
+
 names = ["spacesaving single", "spacesaving deleg"]
 fancy_names = ["Single Space-Saving","Delegation Space-Saving"]
 
@@ -64,7 +66,11 @@ def parse_accuracy(filename):
             ares.append(are)
     return precs, recs, ares
 
-def average_and_std(l, reps):
+def average_and_std(l):
+    return np.average(l), np.std(l)
+    '''
+    np.average(l)
+    np.std(l)
     ret_avg = []
     ret_std = []
     steps = int(len(l)/reps)
@@ -75,6 +81,7 @@ def average_and_std(l, reps):
         ret_std = np.std(segment)
         index += reps
     return ret_avg, ret_std
+    '''
 
 def phiprecision(res, N, PHI):
     ''' !Not used! calculates precision from returned set and ground truth histogram '''

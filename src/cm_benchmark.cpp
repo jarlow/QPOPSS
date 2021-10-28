@@ -701,8 +701,8 @@ int main(int argc, char **argv)
 
     MAX_FILTER_UNIQUES = atoi(argv[17]);
 
-    srand((unsigned int)time((time_t *)NULL));
-    //srand(0);
+    //srand((unsigned int)time((time_t *)NULL));
+    srand(0);
 
     //Ground truth histrogram
     unsigned int *hist1 = (unsigned int *)calloc(dom_size, sizeof(unsigned int));
