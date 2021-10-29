@@ -1,7 +1,7 @@
 The Delegation Space-Saving algorithm
 ----------------------------------
 Master thesis project in Computer Science aimed at developing and evaluating a multithreaded algorithm for finding frequent elements in a data stream.
-Fulltext pdf of the associated report is available [here](https://gupea.ub.gu.se/handle/2077/69761).
+Fulltext pdf of the associated report is available [here](https://gupea.ub.gu.se/handle/2077/69761). [Slides](https://1drv.ms/p/s!AoGCrA99762dlJ0tFWP2XnC7Y9bFkQ?e=R4UNUR).
 
 Heavily influenced by:
 
