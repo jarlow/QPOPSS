@@ -4,6 +4,7 @@
 
 #include "xis.h"
 #include "concurrentqueue.h"
+#include <unordered_map>
 
 
 using namespace std;
@@ -188,5 +189,35 @@ class alignas(64) Count_Min_Sketch : public Sketch
     void serveAllRequests();
 };
 
+
+class alignas(64) Frequent_CM_Sketch : public Sketch
+{
+    protected:
+    //unsigned int buckets_no;
+    //unsigned int rows_no;
+
+    //std::pair<uint32_t,uint32_t> *sketch_elem;
+
+    Xi **xi_bucket;
+
+
+  public:
+    unsigned int buckets_no;
+    unsigned int rows_no;
+    std::pair<uint32_t,uint32_t> *sketch_elem;
+    Frequent_CM_Sketch(unsigned int buckets_no, unsigned int rows_no, Xi **xi_bucket);
+    virtual ~Frequent_CM_Sketch();
+
+    virtual void Clear_Sketch();
+
+    virtual void Update_Sketch(unsigned int key, double func);
+    
+    void Query_Local_Sketch(std::unordered_map<uint32_t,uint32_t>* res);
+    void Merge_Local_Sketch(Frequent_CM_Sketch* s2,int numberOfThreads);
+
+    virtual double Size_Of_Join(Sketch *s1);
+
+    virtual double Self_Join_Size();
+};
 
 #endif

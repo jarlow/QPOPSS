@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include "lossycount.h"
 #include "prng.h"
+#include <stack>
+#include <algorithm>
 /********************************************************************
 Implementation of Lossy Counting algorithm to Find Frequent Items
 Based on the paper of Manku and Motwani, 2002
@@ -481,10 +483,14 @@ LCL_type * LCL_Init(float fPhi)
 	LCL_type *result = (LCL_type *) calloc(1,sizeof(LCL_type));
 	// needs to be odd so that the heap always has either both children or 
 	// no children present in the data structure
-	result->size = (1 + k) | 1; // ensure that size is odd
+	//result->size = (1 + k) | 1; // ensure that size is odd
+	result->size = (1 + k) | 1; // For minmax heap, ensure any node has either granchildren or no grandchild
 	result->hashsize = LCL_HASHMULT*result->size;
 	result->hashtable=(LCLCounter **) calloc(result->hashsize,sizeof(LCLCounter*));
 	result->counters=(LCLCounter*) calloc(1+result->size,sizeof(LCLCounter));
+	#if MAXHEAP
+	result->maxheap=(LCLCounter **) calloc(1+result->size,sizeof(LCLCounter*));
+	#endif
 	// indexed from 1, so add 1
 
 	result->hasha=151261303;
@@ -497,6 +503,10 @@ LCL_type * LCL_Init(float fPhi)
 		result->counters[i].next=NULL;
 		result->counters[i].prev=NULL;
 		result->counters[i].item=LCL_NULLITEM;
+		#if MAXHEAP
+		result->counters[i].maxheapptr=&(result->maxheap[i]);
+		result->maxheap[i]=&result->counters[i];
+		#endif
 		// initialize items and counters to zero
 	}
 	result->root=&result->counters[1]; // put in a pointer to the top of the heap
@@ -583,7 +593,7 @@ void LCL_RebuildHash(LCL_type * lcl)
 	}
 }
 
-void Heapify(LCL_type * lcl, int ptr)
+int MinHeapBubbleDown(LCL_type * lcl, int ptr)
 { // restore the heap condition in case it has been violated
 	LCLCounter tmp;
 	LCLCounter * cpt, *minchild;
@@ -600,13 +610,22 @@ void Heapify(LCL_type * lcl, int ptr)
 		minchild=&lcl->counters[mc];
 		// compute which child is the lesser of the two
 
-		if (cpt->count < minchild->count) break;
+		if (cpt->count < minchild->count){
+			break;
+		}
 		// if the parent is less than the smallest child, we can stop
 
 		tmp=*cpt;
 		*cpt=*minchild;
 		*minchild=tmp;
 		// else, swap the parent and child in the heap
+		#if MAXHEAP
+		lcl->maxheap[ cpt->maxheapptr - lcl->maxheap ] = cpt;
+		lcl->maxheap[ minchild->maxheapptr - lcl->maxheap ] = minchild; 
+		// Swap what pointers point to in max-heap also
+		#endif
+
+
 
 		if (cpt->hash==minchild->hash)
 			// test if the hash value of a parent is the same as the 
@@ -639,7 +658,150 @@ void Heapify(LCL_type * lcl, int ptr)
 		ptr=mc;
 		// continue on with the heapify from the child position
 	} 
+	//LCL_ShowHeap(lcl);
+	return ptr;
 }
+
+/* max heap bubble up 
+	Implemented using pointers to LCLCounter objects in lcl->counters.
+
+*/
+void MaxHeapBubbleUp(LCL_type * lcl, int ptr)
+{ 
+	LCLCounter * tmp;
+	LCLCounter * cpt, *maxchild, *parent;
+	LCLCounter ** tmpptr;
+	int pr;
+
+	while(1)
+	{
+		pr=(ptr>>1); // Parent index is floor(ptr/2) 
+		if (pr < 1) break;
+		// Stop if parent is out of bounds, array indexed from 1.
+
+		parent = lcl->maxheap[pr];
+		cpt=lcl->maxheap[ptr]; // create a current pointer
+
+		if(parent->count >= cpt->count) break;
+		// If parent is larger than current pointer we are done
+
+		lcl->maxheap[ptr] = parent;
+		lcl->maxheap[pr] = cpt; 
+		// Swap pointers in maxheap array
+		
+		parent->maxheapptr=&lcl->maxheap[ptr];
+		cpt->maxheapptr=&lcl->maxheap[pr];
+		// Swap the pointers in hashtable to maxheap translation
+
+		ptr=pr;
+		// continue on with the bubble-up from the parent position
+	} 
+}
+
+int find_min_index(LCL_type * lcl, int ptr){
+	int c1=(ptr<<2)+
+			((lcl->counters[ptr<<2].count<lcl->counters[(ptr<<2)+1].count)? 0 : 1);
+	int c2=(ptr<<2)+
+		((lcl->counters[ptr<<2+2].count<lcl->counters[(ptr<<2)+3].count)? 2 : 3);
+	return ((lcl->counters[c1].count<lcl->counters[c2].count)? c1 : c2);
+}
+
+int find_max_index(LCL_type * lcl, int ptr){
+	int c1=(ptr<<2)+
+			((lcl->counters[ptr<<2].count>lcl->counters[(ptr<<2)+1].count)? 0 : 1);
+	int c2=(ptr<<2)+
+		((lcl->counters[ptr<<2+2].count>lcl->counters[(ptr<<2)+3].count)? 2 : 3);
+	return ((lcl->counters[c1].count>lcl->counters[c2].count)? c1 : c2);
+}
+
+void PushDownMin(LCL_type * lcl, int ptr){
+	LCLCounter tmp;
+	LCLCounter * cpt, *minchild;
+	int mc;
+	bool gc=false;
+	while(1){
+		if ((ptr<<1) + 1>lcl->size) break; // if no children, break
+		cpt=&lcl->counters[ptr];
+		if (!(((ptr<<2) + 3)>lcl->size)) { // if grandchild exists
+			mc=find_min_index(lcl,ptr);
+			minchild=&lcl->counters[mc];
+			gc=true;
+		}
+		else{
+			mc=(ptr<<1)+
+				((lcl->counters[ptr<<1].count<lcl->counters[(ptr<<1)+1].count)? 0 : 1);
+			minchild=&lcl->counters[mc];
+		}
+		if (lcl->counters[mc].count < lcl->counters[ptr].count){
+			// swap
+			tmp=*cpt;
+			*cpt=*minchild;
+			*minchild=tmp;
+		}
+		else{
+			break;
+		}
+		if (gc){
+			if(lcl->counters[mc].count > lcl->counters[mc>>1].count){
+				// swap gc
+				cpt=&lcl->counters[mc];
+				minchild=&lcl->counters[mc>>1];
+ 				tmp=*cpt;
+				*cpt=*minchild;
+				*minchild=tmp;
+			}
+		}
+		ptr=mc;
+	}
+}
+void PushDownMax(LCL_type * lcl, int ptr){
+	LCLCounter tmp;
+	LCLCounter * cpt, *maxchild;
+	int mc;
+	bool gc=false;
+	while(1){
+		if ((ptr<<1) + 1>lcl->size) break; // if no children, break
+
+		cpt=&lcl->counters[ptr];
+
+		if (!(((ptr<<2) + 3)>lcl->size)) { // if grandchild exists
+			mc=find_max_index(lcl,ptr);
+			maxchild=&lcl->counters[mc];
+			gc=true;
+		}
+		else{
+			mc=(ptr<<1)+
+				((lcl->counters[ptr<<1].count>lcl->counters[(ptr<<1)+1].count)? 0 : 1);
+			maxchild=&lcl->counters[mc];
+		}
+		if (lcl->counters[mc].count > lcl->counters[ptr].count){
+			// swap
+			tmp=*cpt;
+			*cpt=*maxchild;
+			*maxchild=tmp;
+		}
+		else{
+			break;
+		}
+		if (gc){
+			if(lcl->counters[mc].count < lcl->counters[mc>>1].count){
+				// swap gc
+				cpt=&lcl->counters[mc];
+				maxchild=&lcl->counters[mc>>1];
+ 				tmp=*cpt;
+				*cpt=*maxchild;
+				*maxchild=tmp;
+			}
+		}
+		ptr=mc;
+	}
+}
+
+void MinMaxHeapPushDown(LCL_type * lcl, int ptr){
+	// node level is ptr mod 2, even level is min, odd is max
+	((31-__builtin_clz(ptr)) % 2) ? PushDownMax(lcl,ptr) : PushDownMin(lcl,ptr);
+}
+
 
 LCLCounter * LCL_FindItem(LCL_type * lcl, LCLitem_t item)
 { // find a particular item in the date structure and return a pointer to it
@@ -665,8 +827,9 @@ LCLCounter * LCL_FindItem(LCL_type * lcl, LCLitem_t item)
 
 void LCL_Update(LCL_type * lcl, LCLitem_t item, LCLweight_t value)
 {
-	int hashval;
+	int hashval,bubbleDownPos;
 	LCLCounter * hashptr;
+	LCLCounter ** maxheapptr;
 	// find whether new item is already stored, if so store it and add one
 	// update heap property if necessary
 
@@ -678,13 +841,18 @@ void LCL_Update(LCL_type * lcl, LCLitem_t item, LCLweight_t value)
 		hashval=1;
 	}
 	hashptr=lcl->hashtable[hashval];
+	
 	// compute the hash value of the item, and begin to look for it in 
 	// the hash table
 
 	while (hashptr) {
 		if (hashptr->item==item) {
+			maxheapptr = hashptr->maxheapptr;
 			hashptr->count+=value; // increment the count of the item
-			Heapify(lcl,hashptr-lcl->counters); // and fix up the heap
+			bubbleDownPos=MinHeapBubbleDown(lcl,hashptr-lcl->counters); // and fix up the heap
+			#if MAXHEAP
+			MaxHeapBubbleUp(lcl,lcl->counters[bubbleDownPos].maxheapptr-lcl->maxheap); // fix up maxheap
+			#endif
 			return;
 		}
 		else hashptr=hashptr->next;
@@ -715,7 +883,10 @@ void LCL_Update(LCL_type * lcl, LCLitem_t item, LCLweight_t value)
 	//  value+=lcl->root->delta;
 	// update the upper bound on the items frequency
 	lcl->root->count=value+lcl->root->delta;
-	Heapify(lcl,1); // restore heap property if needed
+	bubbleDownPos=MinHeapBubbleDown(lcl,1); // restore heap property if needed
+	#if MAXHEAP
+	MaxHeapBubbleUp(lcl,lcl->counters[bubbleDownPos].maxheapptr-lcl->maxheap); //fix max-heap, bubble up from pos of min-heap bubble down stopped
+	#endif
 	// return value;
 }
 
@@ -762,15 +933,32 @@ void LCL_Output(LCL_type * lcl) { // prepare for output
 }
 
 // Output for Delegation Space-Saving
-void LCL_Output(LCL_type * lcl, int thresh,std::vector<uint32_t>* keys,std::vector<uint32_t>* vals)
+void LCL_Output(LCL_type * lcl, int thresh,std::vector<std::pair<uint32_t,uint32_t>>* v)
 {
+	#if MAXHEAP
+	int curr_node;
+	std::stack<int> stack;
+	stack.push(1); // 1 is root
+	while(!stack.empty()){
+		curr_node=stack.top();
+		stack.pop();
+		if (lcl->maxheap[curr_node]->count >= thresh){
+			// add children to stack
+			if (! (((curr_node<<1) + 1) >lcl->size)){ // if not a leaf, add children
+				stack.push(curr_node<<1);
+				stack.push((curr_node<<1)+1);
+			}
+			v->push_back(std::make_pair((uint32_t)lcl->maxheap[curr_node]->item,lcl->maxheap[curr_node]->count));
+		}
+	}
+	#else
 	const int size=lcl->size;
 	for (int i=1;i<=size;++i){
 		if (lcl->counters[i].count >= thresh){
-			keys->push_back((uint32_t)lcl->counters[i].item);
-			vals->push_back(lcl->counters[i].count);
+			v->push_back(std::make_pair((uint32_t)lcl->maxheap[i]->item,lcl->maxheap[i]->count));
 		}
 	}
+	#endif
 }
 
 /*
@@ -826,7 +1014,7 @@ void LCL_ShowHash(LCL_type * lcl)
 	}
 }
 */
-/*
+
 void LCL_ShowHeap(LCL_type * lcl)
 { // debugging routine to show the heap
 	int i, j;
@@ -845,8 +1033,56 @@ void LCL_ShowHeap(LCL_type * lcl)
 		}
 	}
 	printf("\n\n");
+	for (i=1; i<=lcl->size; i++){
+		printf("%d ",lcl->counters[i].count);
+	}
+	printf("\n");
 }
-*/
+
+void LCL_ShowHeapMax(LCL_type * lcl)
+{ // debugging routine to show the heap
+	int i, j;
+	int level=0;
+	printf("level:%d\n",level);
+	j=1;
+	for (i=1; i<=lcl->size; i++)
+	{
+		if (lcl->maxheap[i] != NULL){
+		printf("%d ",(int) lcl->maxheap[i]->count);
+		}
+		else{
+			printf("*");
+		}
+		if (i==j) 
+		{ 
+			level++;
+			printf("\n");
+			printf("level:%d\n",level);
+			j=2*j+1; 
+		}
+	}
+	printf("\n\n");
+	for (i=1; i<=lcl->size; i++){
+		if(lcl->maxheap[i]){
+		printf("%d ",lcl->maxheap[i]->count);
+		}
+		else{
+			printf("* ");
+		}
+	}
+	printf("\n");
+	for (i=1; i<=lcl->size; i++){
+		if(lcl->maxheap[i]){
+		printf("%d ",lcl->maxheap[i]->item);
+		}
+		else{
+			printf("* ");
+		}
+	}
+	printf("\n");
+}
+
+
 
 /********************************************************************
 Implementation of Frequent algorithm to Find Frequent Items

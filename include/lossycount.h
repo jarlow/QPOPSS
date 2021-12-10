@@ -5,6 +5,10 @@
 #ifndef LOSSYCOUNTING_h
 #define LOSSYCOUNTING_h
 
+#ifndef MAXHEAP
+#define MAXHEAP 0
+#endif
+
 #include "prng.h"
 
 typedef struct lccounter
@@ -83,6 +87,7 @@ struct lclcounter_t
   volatile LCLweight_t count = 0; // (upper bound on) count for the item
   LCLweight_t delta = 0; // max possible error in count for the value
   LCLCounter *prev, *next; // pointers in doubly linked list for hashtable
+  LCLCounter** maxheapptr;
 }; // 32 bytes
 
 #define LCL_HASHMULT 3  // how big to make the hashtable of elements:
@@ -101,12 +106,14 @@ typedef struct LCL_type
   LCLCounter *root;
 #ifdef LCL_SIZE
   LCLCounter counters[LCL_SIZE+1]; // index from 1
+  LCLCounter maxheap[LCL_SIZE+1]; // index from 1
   LCLCounter *hashtable[LCL_SPACE]; // array of pointers to items in 'counters'
   // 24 + LCL_SIZE*(32 + LCL_HASHMULT*4) + 8
             // = 24 + 102*(32+12)*4 = 4504
             // call it 4520 for luck...
 #else
   alignas(64) LCLCounter *counters;
+  alignas(64) LCLCounter **maxheap;
   LCLCounter ** hashtable; // array of pointers to items in 'counters'
 #endif
 } LCL_type;
@@ -118,12 +125,13 @@ extern int LCL_Size(LCL_type *);
 extern int LCL_PointEst(LCL_type *, LCLitem_t);
 extern int LCL_PointErr(LCL_type *, LCLitem_t);
 extern int LCL_Output(LCL_type *,int,uint32_t*,uint32_t*);
-extern void LCL_Output(LCL_type *,int,std::vector<uint32_t>*,std::vector<uint32_t>*);
+extern void LCL_Output(LCL_type *,int,std::vector<std::pair<uint32_t,uint32_t>>*);
 extern int LCL_Output(LCL_type *,int,std::pair<uint32_t,uint32_t>*);
 extern std::vector<std::pair<uint32_t,uint32_t>> LCL_Output(LCL_type *,int);
 extern void LCL_Output(LCL_type*);
 extern void LCL_ShowHash(LCL_type *);
 extern void LCL_ShowHeap(LCL_type *);
+extern void LCL_ShowHeapMax(LCL_type *);
 extern LCL_type * LCL_Copy(LCL_type *);
 
 //////////////////////////////////////////////////////

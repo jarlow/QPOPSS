@@ -7,6 +7,7 @@
 #include "filter.h"
 #include "getticks.h"
 #include "lossycount.h"
+#include "LossyCountMinSketch.h"
 
 #include <numeric> 
 #include <sys/time.h>
@@ -23,18 +24,59 @@
 
 #define PREINSERT 0
 #define NO_SQUASHING 0
+#define HASHA 151261303
+#define HASHB 6722461
+#define TRUE 1
+#define FALSE 0
+
 using namespace std;
 
 FilterStruct * filterMatrix;
 
+set<uint32_t> uniques;
+uint32_t uniques_no;
 int K;
 float PHI;
 int MAX_FILTER_SUM,MAX_FILTER_UNIQUES;
-int tuples_no;
+int tuples_no,rows_no;
+
+
+/* TOPKAPI */
+
+void allocate_sketch( LossySketch* sketch,
+                      const unsigned range)
+{
+  int i;
+  (*sketch)._b           = range;
+  (*sketch).identity     = (uint32_t*) malloc(range*sizeof(uint32_t));
+  (*sketch).lossyCount   = (int* ) malloc(range*sizeof(int));
+	if ( (*sketch).identity == NULL ||
+			 (*sketch).lossyCount == NULL )
+	{
+		fprintf(stderr, "LossySketch allocation error!\n");
+		exit(EXIT_FAILURE);
+	}
+  /* set counts to -1 to indicate empty counter */
+  for (i = 0; i < range; ++i){
+    (*sketch).lossyCount[i] = -1;
+    (*sketch).identity[i] = 0;
+  }
+}
+
+/* Frees a row of topkapi sketch data structure */
+void deallocate_sketch( LossySketch* sketch )
+{
+  free((*sketch).identity);
+  free((*sketch).lossyCount);
+}
+
+/* TOPKAPI */ 
+
 
 unsigned short precomputedMods[512];
 
 static inline int findOwner(unsigned int key){
+    //return precomputedMods[hash31(HASHA,HASHB,key) & (BUCKETS-1)]; // Cardinality estimation
     return precomputedMods[key & 511];
 }
 volatile int threadsFinished = 0;
@@ -86,6 +128,25 @@ int shouldQuery(threadDataStruct *ltd){
 int shouldTopKQuery(threadDataStruct *ltd){
     return ((my_random(&(ltd->seeds[0]), &(ltd->seeds[2]), &(ltd->seeds[1]))) % 1000000);
 }
+
+/* Used for cardinality estimation */
+void updateBucket(threadDataStruct * localThreadData,uint32_t key){
+    // Count leading zeros of the key
+    uint32_t hash=hash31(HASHA,HASHB,key);
+    int num_zeros=__builtin_clz(hash);
+    int thr_local_idx=(hash & (BUCKETS-1))/numberOfThreads;
+    /*update the bucket if leading zeros of key exceed previous max*/
+    if (num_zeros > localThreadData->buckets[thr_local_idx]){
+        if (localThreadData->buckets[thr_local_idx] != 0){
+            /* remove old outdated value */
+            localThreadData->sum_of_buckets-=pow(2.0,-localThreadData->buckets[thr_local_idx]);
+        }
+        /* add new value to the running total */
+        localThreadData->buckets[thr_local_idx]=num_zeros;
+        localThreadData->sum_of_buckets+=pow(2.0,-num_zeros);
+    } 
+}
+
 void serveDelegatedInserts(threadDataStruct * localThreadData){
     // Check if there is a full filter that needs emptying
     if (!localThreadData->listOfFullFilters) return;
@@ -114,6 +175,7 @@ void serveDelegatedInserts(threadDataStruct * localThreadData){
             int key = filter->filter_id[i];
             #if SPACESAVING
             LCL_Update(localThreadData->ss,key,count);
+            //updateBucket(localThreadData,key); // Cardinality estimation
             #else // If vanilla Delegation Sketch is used
             insertFilterNoWriteBack(localThreadData, key, count);
             #endif
@@ -182,8 +244,10 @@ static inline void delegateInsert(threadDataStruct * localThreadData, unsigned i
     #if SINGLE
     LCL_Update(threadData[0].ss,key,1);
     localThreadData->counter++;
+    updateBucket(localThreadData,key); // cardinality estimation
     return;
     #else
+    /* Use cachecounter to prevent false-sharing */
     localThreadData->cachecounter++;
     if (localThreadData->cachecounter >= 100){
         localThreadData->counter+=100;
@@ -196,27 +260,29 @@ static inline void delegateInsert(threadDataStruct * localThreadData, unsigned i
         return;
     }
     // Uncomment for other approach, count the occurrence of elements locally instead of per filter.
-    //localThreadData->sumcounter++;
-    /*while (filter->filterFull){
+    localThreadData->sumcounter++;
+    while (filter->filterFull){
         serveDelegatedInsertsAndQueries(localThreadData);
-    }*/
+    }
     tryInsertInDelegatingFilterWithListAndMaxSum(filter, key);
-    //if (localThreadData->sumcounter == MAX_FILTER_SUM || filter->filterCount == MAX_FILTER_UNIQUES ){
-    if (filter->filterSum == MAX_FILTER_SUM || filter->filterCount == MAX_FILTER_UNIQUES ){
+    /* If the current filter contains max uniques, or if the number of inserts since last window is equal to max, flush all filters */
+    if (localThreadData->sumcounter == MAX_FILTER_SUM || filter->filterCount == MAX_FILTER_UNIQUES ){
+    //if (filter->filterSum == MAX_FILTER_SUM || filter->filterCount == MAX_FILTER_UNIQUES ){ // old method
+        /* push all filters to the other threads */
         for (int i=0;i< numberOfThreads;i++){
             filter = &(filterMatrix[localThreadData->tid * (numberOfThreads) + i]);
             filter->filterFull=1;
             threadDataStruct * owningThread = &(threadData[i]);
             push(filter, &(owningThread->listOfFullFilters));
         }
-        
+        /* Make sure all filters are empty before continuing */
         for (int i=0;i< numberOfThreads;i++){
             filter = &(filterMatrix[localThreadData->tid * (numberOfThreads) + i]);
             while( filter->filterFull  && startBenchmark){  
                 serveDelegatedInsertsAndQueries(localThreadData);
             }
         }  
-        //localThreadData->sumcounter=0;     
+        localThreadData->sumcounter=0;     
     }
 
     #else
@@ -285,10 +351,11 @@ double querry(threadDataStruct * localThreadData, unsigned int key){
 
 
 void insert(threadDataStruct * localThreadData, unsigned int key, unsigned int increment){
-#if USE_MPSC
-    int owner = findOwner(key); 
-    localThreadData->sketchArray[owner]->enqueueRequest(key);
-    localThreadData->theSketch->serveAllRequests(); //Serve any requests you can find in your own queue
+#if TOPKAPI
+    //localThreadData->topkapi_instance->Update_Sketch(key,increment);
+    for (int i = 0; i < rows_no; ++i){
+        update_sketch( &(localThreadData->th_local_sketch[localThreadData->tid * rows_no + i]), key, localThreadData->randoms,i );
+    }
 #elif REMOTE_INSERTS
     int owner = findOwner(key);
     localThreadData->sketchArray[owner]->Update_Sketch_Atomics(key, increment);
@@ -298,22 +365,55 @@ void insert(threadDataStruct * localThreadData, unsigned int key, unsigned int i
     localThreadData->theSketch->Update_Sketch(key, double(increment));
 #elif SHARED_SKETCH
     localThreadData->theGlobalSketch->Update_Sketch_Atomics(key, increment);
+#elif USE_MPSC
+    int owner = findOwner(key); 
+    localThreadData->sketchArray[owner]->enqueueRequest(key);
+    localThreadData->theSketch->serveAllRequests(); //Serve any requests you can find in your own queue
 #endif
 }
 
+bool sortbysecdesc(const pair<uint32_t,uint32_t> &a,
+                   const pair<uint32_t,uint32_t> &b)
+{
+       return a.second>b.second;
+}
+
+void topkapi_query(threadDataStruct * localThreadData,int K,float phi,vector<pair<uint32_t,uint32_t>>* v ){
+    v->clear();
+    std::unordered_map<uint32_t,uint32_t> res;
+    for (int t=0;t < numberOfThreads;t++){
+        threadData[t].topkapi_instance->Query_Local_Sketch(&res);
+    }
+    for (auto elem : res){
+        v->push_back(elem);
+    }
+    std::sort(v->data(), v->data()+v->size(), sortbysecdesc);
+
+    /* slice away elements that are not part of the top k */
+    v->erase(v->end()-(v->size()-K),v->end());
+}
+
+int fast_mod(const int input, const int ceil) {
+    // apply the modulo operator only when needed
+    // (i.e. when the input is greater than the ceiling)
+    return input >= ceil ? input % ceil : input;
+    // NB: the assumption here is that the numbers are positive
+}
+
+
 // Performs a frequent elements query 
 void FEquery(threadDataStruct * localThreadData,int K,float phi,vector<pair<uint32_t,uint32_t>>* v ){
+    //float cardinality_estimate=0.0;
     LCL_type* local_spacesaving;
     v->clear();
-    vector<uint32_t> vkeys;
-    vector<uint32_t> vvals;
     uint64_t streamsize=0;
     
     // If single threaded just extract frequent elements from the local Space-Saving instance
     #if SINGLE
     streamsize = localThreadData->counter;
     local_spacesaving = localThreadData->ss;
-    LCL_Output(local_spacesaving,streamsize*phi,&vkeys,&vvals);
+    LCL_Output(local_spacesaving,streamsize*phi,v);
+    //cardinality_estimate=threadData[0].sum_of_buckets;
 
     // If Delegation Space-Saving then extract local frequent elements at all threads
     #else
@@ -325,37 +425,45 @@ void FEquery(threadDataStruct * localThreadData,int K,float phi,vector<pair<uint
 
     // Get all local frequent elements at the threads
     bool bm[numberOfThreads]={0};
+    //uint32_t bm=0;
     int num_complete=0;
     int i=0;
     while (num_complete < numberOfThreads){
+        //if(!((bm >> i) & 1)){ // check if i'th bit is 0
         if (!bm[i]){
             if(pthread_mutex_trylock(&threadData[i].mutex)){
                 // try next
-                i=(i+1) % (numberOfThreads);
+                i=precomputedMods[i+1];
                 continue;
             }
             local_spacesaving=threadData[i].ss;
-            LCL_Output(local_spacesaving,streamsize*phi,&vkeys,&vvals);
+            LCL_Output(local_spacesaving,streamsize*phi,v);
+            //cardinality_estimate+=threadData[i].sum_of_buckets;
             pthread_mutex_unlock(&threadData[i].mutex);
             bm[i]=true;
+            //bm |= (1 << i); // set i'th bit to 1
             num_complete++;
+            //serveDelegatedInserts(localThreadData);
         }
+        /*else{
+            i=__builtin_ctz((~bm & (bm+1))); // find position of rightmost unset bit
+        }*/
         serveDelegatedInserts(localThreadData);
-        i=(i+1) % (numberOfThreads);
+        i=precomputedMods[i+1];
     }
     #endif
 
-    // Sort indices, to avoid swapping both key and value
-    std::vector<int> indices(vvals.size());
-    std::iota(indices.begin(),indices.end(),0);
-    std::sort(indices.begin(), indices.end(),
-       [&vvals](size_t i1, size_t i2) {return vvals[i1] > vvals[i2];});
-    // Insert into single vector, as key:value pairs.  
-    for (int ix : indices){
-        v->push_back(std::pair<uint32_t,uint32_t>(vkeys[ix],vvals[ix]));
-    }
+    // Sort output
+    std::sort(v->data(), v->data()+v->size(),sortbysecdesc);
+    //cardinality_estimate=BUCKETS_SQ*0.709/cardinality_estimate;
+    //return cardinality_estimate;
 }
 
+uint64_t rdtsc(){
+    unsigned int lo,hi;
+    __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
+    return ((uint64_t)hi << 32) | lo;
+}
 
 void threadWork(threadDataStruct *localThreadData)
 {
@@ -390,11 +498,26 @@ void threadWork(threadDataStruct *localThreadData)
             }*/
             if (shouldTopKQuery(localThreadData) < TOPK_QUERY_RATE)
             {
-                numTopKQueries++;
+                #if LATENCY
+                uint64_t tick = rdtsc();  // Latency measurement
+                #endif
+
+                #if SPACESAVING
                 FEquery(localThreadData,K,PHI,&(localThreadData->lasttopk));
+                #elif TOPKAPI
+                //topkapi_query(localThreadData,K,PHI,&(localThreadData->lasttopk));
+                #endif
+
+                #if LATENCY
+                localThreadData->latencies[numTopKQueries]=rdtsc() - tick;
+                //printf("after: %lu\n",rdtsc() - tick); // Latency measurement
+                #endif
+                numTopKQueries++;
             }                        
             numInserts++;
-            #if DELEGATION_FILTERS
+            #if TOPKAPI
+            insert(localThreadData, key, 1);
+            #elif DELEGATION_FILTERS
             #if SINGLE
             delegateInsert(localThreadData, key, 1, 0);
             #else
@@ -519,7 +642,7 @@ void postProcessing(){
     printf("LOG: num Queries: %ld, num Inserts %ld, percentage %f num topk %ld, topk percentage %f, garbage print %f\n",sumNumQueries, sumNumInserts, percentage, sumTopKQueries, percentagetopk, sumReturnValues);
 }
 
-void printAccuracyResults(vector<pair<uint32_t,uint32_t>>*vecthist,vector<pair<uint32_t,uint32_t>>*lasttopk, int sumNumInserts){
+void printAccuracyResults(vector<pair<uint32_t,uint32_t>>*vecthist,vector<pair<uint32_t,uint32_t>>*lasttopk, uint64_t sumNumInserts){
         // Calculate Recall, Precision and Average Relative Error
         set<uint32_t> truth;
         set<uint32_t> elems;
@@ -564,10 +687,10 @@ void printAccuracyResults(vector<pair<uint32_t,uint32_t>>*vecthist,vector<pair<u
         printf("\nPrecision:%f, Recall:%f, AverageRelativeError:%f\n", precision,recall,avg_rel_error );
         printf("\n");
 }
-void saveAccuracyHistogram(vector<pair<uint32_t,uint32_t>>*vecthist,vector<pair<uint32_t,uint32_t>>*lasttopk,int sum){
+void saveAccuracyHistogram(vector<pair<uint32_t,uint32_t>>*vecthist,vector<pair<uint32_t,uint32_t>>*lasttopk,uint64_t sum){
         FILE *fp = fopen("logs/topk_results.txt", "w");
         //N, K,Phi in first row.
-        fprintf(fp,"%lld %d %f\n",sum,K,PHI);
+        fprintf(fp,"%llu %d %f\n",sum,K,PHI);
         for (int i = 0; i < vecthist->size(); i++){
             pair<uint32_t,uint32_t> ltopk;
             if (i < lasttopk->size()){
@@ -583,31 +706,40 @@ void saveAccuracyHistogram(vector<pair<uint32_t,uint32_t>>*vecthist,vector<pair<
         fclose(fp);
 }
 
-vector<unsigned int> *read_ints(const char *file_name, int *length)
+vector<unsigned int> *read_ints(const char *file_name, uint64_t *length, unordered_map<uint32_t,uint32_t>* hist_um)
 {
+    printf("started reading input\n");
     FILE *file = fopen(file_name, "r");
     unsigned int i = 0;
 
     //read number of values in the file
-    fscanf(file, "%d", &i);
+    //fscanf(file, "%d", &i);
     //unsigned int *input_values = (unsigned int *)calloc(i, sizeof(unsigned int));
-    vector <unsigned int> * input_values = new vector<unsigned int>(i, 0);
-    *length = i;
+    vector <unsigned int> * input_values = new vector<unsigned int>();
 
-    fscanf(file, "%d", &i);
+    //fscanf(file, "%d", &i);
     int index = 0;
     while (!feof(file))
     {
-        (*input_values)[index] = i;
-        index++;
         fscanf(file, "%d", &i);
+        input_values->push_back(i);
+        index++;
+        auto hist_um_it = hist_um->find(i);
+        if (hist_um_it != hist_um->end()) {
+            hist_um_it->second++;
+        }
+        else {
+            hist_um->insert(std::make_pair(i , (uint32_t)1));
+        }
     }
+    *length=index;
     fclose(file);
+    printf("%llu elements read, %u uniques\n",*length,hist_um->size());
     return input_values;
 }
 
 
-int getGroundTruth(vector<pair<uint32_t,uint32_t>>* vecthist,uint32_t* hist1,int use_real_data,int dom_size,unordered_map<uint32_t,uint32_t>* hist_um){
+uint64_t getGroundTruth(vector<pair<uint32_t,uint32_t>>* vecthist,uint32_t* hist1,int use_real_data,uint32_t dom_size,unordered_map<uint32_t,uint32_t>* hist_um){
     uint64_t sum=0;
     if (use_real_data){
         for (auto& it: *hist_um) {
@@ -645,7 +777,7 @@ void saveMemoryConsumption(LCL_type* ss, int numberOfThreads){
 int main(int argc, char **argv)
 {
     uint32_t dom_size;
-    int buckets_no, rows_no;
+    int buckets_no;
 
     int DIST_TYPE;
     double DIST_PARAM, DIST_SHUFF;
@@ -660,18 +792,21 @@ int main(int argc, char **argv)
     int use_real_data = 0;
     char input_file_name[1024];
     vector<unsigned int> * input_data;
-    int input_length;
+    uint64_t input_length;
+    //Histogram for real-world data:
+    unordered_map<uint32_t,uint32_t> hist_um;
 
     if (argc==19){
         use_real_data = 1;
         strcpy(input_file_name,argv[18]);
-        input_data = read_ints(input_file_name, &input_length);
+        input_data = read_ints(input_file_name, &input_length,&hist_um);
     }
 
     dom_size = atoi(argv[1]);
     tuples_no = atoi(argv[2]);
     if (use_real_data){
         tuples_no = input_length;
+        dom_size=hist_um.size();
     }
 
     buckets_no = atoi(argv[3]);
@@ -706,8 +841,6 @@ int main(int argc, char **argv)
 
     //Ground truth histrogram
     unsigned int *hist1 = (unsigned int *)calloc(dom_size, sizeof(unsigned int));
-    //Histogram for real-world data:
-    unordered_map<uint32_t,uint32_t> hist_um;
 
     //generate the two relations
     Relation *r1 = new Relation(dom_size, tuples_no);
@@ -756,10 +889,18 @@ int main(int argc, char **argv)
         printf("size of the sketch %zu\n",sizeof(Count_Min_Sketch));
         globalSketch = new Count_Min_Sketch(buckets_no, rows_no, cm_cw2b);
         Count_Min_Sketch ** cmArray = (Count_Min_Sketch **) aligned_alloc(64, (numberOfThreads) * sizeof(Count_Min_Sketch *));
+        Frequent_CM_Sketch ** topkapi = (Frequent_CM_Sketch **) aligned_alloc(64, (numberOfThreads) * sizeof(Frequent_CM_Sketch *));
+        LossySketch *  th_local_sketch = (LossySketch* ) malloc(rows_no*numberOfThreads*
+                                            sizeof(LossySketch));
+
 
         for (int i=0; i<numberOfThreads; i++){
             cmArray[i] = new Count_Min_Sketch(buckets_no, rows_no, cm_cw2b);
+            topkapi[i] = new Frequent_CM_Sketch(buckets_no,rows_no,cm_cw2b);
             cmArray[i]->SetGlobalSketch(globalSketch);
+            for (int th_i = 0; th_i < rows_no; ++th_i){
+                allocate_sketch( &th_local_sketch[i * rows_no + th_i], buckets_no);
+            }
         }
 
         filterMatrix = (FilterStruct *) calloc((numberOfThreads)*(numberOfThreads), sizeof(FilterStruct));
@@ -777,23 +918,11 @@ int main(int argc, char **argv)
             for (int i = 0; i < r1->tuples_no; i++)
             {
                 hist1[(*r1->tuples)[i]]++;
+                uniques.insert((*r1->tuples)[i]);
             }
+            uniques_no=uniques.size();
         }
-        else{
-            for (int i = 0; i < tuples_no; i++)
-            {
-                auto it = hist_um.find((*r1->tuples)[i]);
-                if (it != hist_um.end()) {
-                    it->second++;    // increment map's value for key `c`
-                }       
-                // key not found
-                else {
-                    hist_um.insert(std::make_pair((*r1->tuples)[i], 1));
-                }
-            }
-
-        }
-        initThreadData(cmArray,r1,MAX_FILTER_SUM,MAX_FILTER_UNIQUES);
+        initThreadData(cmArray,r1,MAX_FILTER_SUM,MAX_FILTER_UNIQUES,topkapi,TOPK_QUERY_RATE,tuples_no,numberOfThreads,th_local_sketch,cm_cw2b);
         spawnThreads();
         barrier_cross(&barrier_global);        
         #if PREINSERT
@@ -811,7 +940,73 @@ int main(int argc, char **argv)
         stopTime();
         #if ACCURACY 
         // Perform a query at the end of the stream
+        #if SPACESAVING
         FEquery(&(threadData[0]),K,PHI,&(threadData[0].lasttopk));
+        #elif TOPKAPI
+        for (int i = 0; i < rows_no; ++i){
+            local_merge_sketch(th_local_sketch, numberOfThreads, rows_no, i);
+        }
+        std::map<int,int> topk_words;
+        std::map<int,int>::reverse_iterator rit;
+        int num_heavy_hitter = 0;
+        int count;
+        uint32_t elem;
+        int i,j;
+        int id;
+        int range=buckets_no;
+        int frac_epsilon=K*10;
+        int* is_heavy_hitter = (int* )malloc(range*sizeof(int));
+        int threshold = (int) ((range/K) - 
+                            (range/frac_epsilon));
+
+        for (i = 0; i < range; ++i){
+            is_heavy_hitter[i] = FALSE;
+            for (j = 0; j < rows_no; ++j){
+                if ( j == 0){
+                elem = th_local_sketch->identity[i];
+                count = th_local_sketch->lossyCount[i];
+                if (count >= threshold)
+                {
+                    is_heavy_hitter[i] = TRUE;
+                }
+                } else {
+                id = threadData->randoms[j]->element(elem);
+                if ((th_local_sketch[j].identity[id] !=  elem) )
+                {
+                    continue;
+                } else if (th_local_sketch[j].lossyCount[id] >= threshold)
+                {
+                    is_heavy_hitter[i] = TRUE;
+                }
+                if (th_local_sketch[j].lossyCount[id] > count)
+                    count = th_local_sketch[j].lossyCount[id];
+                }
+            }
+            th_local_sketch->lossyCount[i] = count;
+            }
+
+            for (i = 0; i < range; ++i)
+            {
+            if (is_heavy_hitter[i])
+            {
+                num_heavy_hitter ++;
+                topk_words.insert( std::pair<int,int>(th_local_sketch->lossyCount[i], i) );
+            }
+            }
+
+            for (i = 0, rit = topk_words.rbegin(); 
+                (i < K) && (rit != topk_words.rend()); 
+                    ++i, ++rit)
+            {
+            j = rit->second;
+            printf( "%u %d\n", th_local_sketch->identity[j], 
+                        rit->first);
+        }
+        /* free memories */
+        free(is_heavy_hitter); 
+        
+        //topkapi_query(&(threadData[0]),K,PHI,&(threadData[0].lasttopk));
+        #endif
         #endif
         postProcessing();
         
@@ -835,6 +1030,21 @@ int main(int argc, char **argv)
         #endif
         //printf("thread: %d num uniques: %d\n",threadData[i].tid,threadData[i].num_uniques);
     }
+
+    #if LATENCY
+    const float clockspeed_hz = 3066775000.0; // clockspeed of the server
+    float average=0.0;
+    for(int i=0;i<numberOfThreads;i++){
+        for(int j=0;j<threadData[i].numTopKQueries;j++){
+            average+= threadData[i].latencies[j] / clockspeed_hz;
+        }
+        average/=threadData[i].numTopKQueries;
+        average*= pow(10,6); // convert to microseconds
+        printf("\nthread: %d avg: %f\n",i,average);
+        average=0.0;
+    }
+    #endif
+
 
     #if ACCURACY //Accuracy results
     vector<pair<uint32_t,uint32_t>> vecthist; // Ground truth
@@ -869,6 +1079,7 @@ int main(int argc, char **argv)
     printf("DURATION:            %d\n", DURATION);
     printf("QUERRY RATE:         %d\n", QUERRY_RATE);
     printf("THREADS:             %d\n", numberOfThreads);
+    printf("True uniques:             %u\n", uniques_no);
 
     }
     hist1 = NULL;
