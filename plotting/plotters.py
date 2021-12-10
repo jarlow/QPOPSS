@@ -113,7 +113,7 @@ def avg_relative_error(res, N, PHI):
                 num_res += 1
     return 0 if num_res == 0 else avg_re/num_res
 
-def absolute_error(res, N, PHI):
+def absolute_error(res):
     ''' Absolute error of a set of elements. 
     Returns one absolute error per tuple in the set.
 
@@ -124,6 +124,12 @@ def absolute_error(res, N, PHI):
         A set of (element,count) tuples
     
       '''
+    return point_error(res,lambda truth,est:abs(truth-est))
+
+def absolute_relative_error(res):
+    return point_error(res,lambda truth,est:abs(1-(est/truth)))
+
+def point_error(res,err_fun):
     df = pd.DataFrame(columns=['abs error', 'true_value'])
     for r in res:
         elem = r[3]
@@ -134,8 +140,7 @@ def absolute_error(res, N, PHI):
                 if elem == t[1]:
                     truth = int(t[2])
                     estimate = int(r[4])
-                    #are = abs(1-(estimate/truth)) #Absolute relative error
-                    are =  abs(truth-estimate) #Absolute error
+                    are = err_fun(truth,estimate)
                     df.loc[elem] = [are, truth]
                     break
     df.sort_values('true_value', inplace=True, ascending=False)

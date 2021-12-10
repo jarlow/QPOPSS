@@ -1,11 +1,12 @@
 #include "sketches.h"
 #include "xis.h"
 
-
 #include <string.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unordered_map>
+
 using namespace std;
 
 
@@ -18,7 +19,7 @@ double Sketch::Average(double *x, int n)
 {
   double sum = 0;
   for (int i = 0; i < n; i++)
-    sum += x[i];
+	sum += x[i];
 
   sum = sum / (double)n;
   return sum;
@@ -29,37 +30,37 @@ double Sketch::Average(double *x, int n)
 double Sketch::Median(double *x, int n)
 {
   if (n == 1)
-    return x[0];
+	return x[0];
 
   if (n == 2)
-    return (x[0] + x[1]) / 2;
+	return (x[0] + x[1]) / 2;
 
   double *X = new double[n];
   for (int i = 0; i < n; i++)
-    X[i] = x[i];
+	X[i] = x[i];
 
   // implement bubble sort
   bool rpt = true;
   while (rpt)
   {
-    rpt = false;
+	rpt = false;
 
-    for (int i = 0; i < n - 1; i++)
-      if (X[i] > X[i+1])
-      {
-        double t = X[i];
-        X[i] = X[i + 1];
-        X[i + 1] = t;
-        rpt = true;
-      }
+	for (int i = 0; i < n - 1; i++)
+	  if (X[i] > X[i+1])
+	  {
+		double t = X[i];
+		X[i] = X[i + 1];
+		X[i + 1] = t;
+		rpt = true;
+	  }
   }
 
   double res;
 
   if (n%2 == 0)
-    res = (X[n/2 - 1] + X[n/2]) / 2.0;
+	res = (X[n/2 - 1] + X[n/2]) / 2.0;
   else
-    res = X[n/2];
+	res = X[n/2];
 
   delete [] X;
 
@@ -71,15 +72,15 @@ double Sketch::Median(double *x, int n)
 double Sketch::Min(double *x, int n)
 {
   if (n == 1)
-    return x[0];
+	return x[0];
 
   if (n == 2)
-    return (x[0] <= x[1] ? x[0] : x[1]);
+	return (x[0] <= x[1] ? x[0] : x[1]);
 
   double min = x[0];
   for (int i = 1; i < n; i++)
-    if (x[i] < min)
-      min = x[i];
+	if (x[i] < min)
+	  min = x[i];
 
   return min;
 }
@@ -106,7 +107,7 @@ AGMS_Sketch::AGMS_Sketch(unsigned int cols_no, unsigned int rows_no, Xi **xi_pm1
 
   this->sketch_elem = new double[rows_no * cols_no];
   for (int i = 0; i < rows_no * cols_no; i++)
-    this->sketch_elem[i] = 0.0;
+	this->sketch_elem[i] = 0.0;
 }
 
 
@@ -125,14 +126,14 @@ AGMS_Sketch::~AGMS_Sketch()
 void AGMS_Sketch::Clear_Sketch()
 {
   for (int i = 0; i < rows_no * cols_no; i++)
-    sketch_elem[i] = 0.0;
+	sketch_elem[i] = 0.0;
 }
 
 
 void AGMS_Sketch::Update_Sketch(unsigned int key, double func)
 {
   for (int i = 0; i < rows_no * cols_no; i++)
-    sketch_elem[i] = sketch_elem[i] + xi_pm1[i]->element(key) * func;
+	sketch_elem[i] = sketch_elem[i] + xi_pm1[i]->element(key) * func;
 }
 
 
@@ -140,11 +141,11 @@ double AGMS_Sketch::Size_Of_Join(Sketch *s1)
 {
   double *basic_est = new double[rows_no * cols_no];
   for (int i = 0; i < rows_no * cols_no; i++)
-    basic_est[i] = sketch_elem[i] * ((AGMS_Sketch*)s1)->sketch_elem[i];
+	basic_est[i] = sketch_elem[i] * ((AGMS_Sketch*)s1)->sketch_elem[i];
 
   double *avg_est = new double[rows_no];
   for (int i = 0; i < rows_no; i++)
-    avg_est[i] = Average(basic_est + i * cols_no, cols_no);
+	avg_est[i] = Average(basic_est + i * cols_no, cols_no);
 
   double result = Median(avg_est, rows_no);
 
@@ -159,11 +160,11 @@ double AGMS_Sketch::Self_Join_Size()
 {
   double *basic_est = new double[rows_no * cols_no];
   for (int i = 0; i < rows_no * cols_no; i++)
-    basic_est[i] = sketch_elem[i] * sketch_elem[i];
+	basic_est[i] = sketch_elem[i] * sketch_elem[i];
 
   double *avg_est = new double[rows_no];
   for (int i = 0; i < rows_no; i++)
-    avg_est[i] = Average(basic_est + i * cols_no, cols_no);
+	avg_est[i] = Average(basic_est + i * cols_no, cols_no);
 
   double result = Median(avg_est, rows_no);
 
@@ -192,7 +193,7 @@ FAGMS_Sketch::FAGMS_Sketch(unsigned int buckets_no, unsigned int rows_no, Xi **x
 
   this->sketch_elem = new double[buckets_no * rows_no];
   for (int i = 0; i < buckets_no * rows_no; i++)
-    this->sketch_elem[i] = 0.0;
+	this->sketch_elem[i] = 0.0;
 }
 
 
@@ -212,7 +213,7 @@ FAGMS_Sketch::~FAGMS_Sketch()
 void FAGMS_Sketch::Clear_Sketch()
 {
   for (int i = 0; i < buckets_no * rows_no; i++)
-    sketch_elem[i] = 0.0;
+	sketch_elem[i] = 0.0;
 }
 
 
@@ -220,8 +221,8 @@ void FAGMS_Sketch::Update_Sketch(unsigned int key, double func)
 {
   for (int i = 0; i < rows_no; i++)
   {
-    int bucket = (int)xi_bucket[i]->element(key);
-    sketch_elem[i * buckets_no + bucket] = sketch_elem[i * buckets_no + bucket] + xi_pm1[i]->element(key) * func;
+	int bucket = (int)xi_bucket[i]->element(key);
+	sketch_elem[i * buckets_no + bucket] = sketch_elem[i * buckets_no + bucket] + xi_pm1[i]->element(key) * func;
   }
 }
 
@@ -231,9 +232,9 @@ double FAGMS_Sketch::Size_Of_Join(Sketch *s1)
   double *basic_est = new double[rows_no];
   for (int i = 0; i < rows_no; i++)
   {
-    basic_est[i] = 0.0;
-    for (int j = 0; j < buckets_no; j++)
-      basic_est[i] = basic_est[i] + sketch_elem[i * buckets_no + j] * ((FAGMS_Sketch*)s1)->sketch_elem[i * buckets_no + j];
+	basic_est[i] = 0.0;
+	for (int j = 0; j < buckets_no; j++)
+	  basic_est[i] = basic_est[i] + sketch_elem[i * buckets_no + j] * ((FAGMS_Sketch*)s1)->sketch_elem[i * buckets_no + j];
   }
 
   double result = Median(basic_est, rows_no);
@@ -249,9 +250,9 @@ double FAGMS_Sketch::Self_Join_Size()
   double *basic_est = new double[rows_no];
   for (int i = 0; i < rows_no; i++)
   {
-    basic_est[i] = 0.0;
-    for (int j = 0; j < buckets_no; j++)
-      basic_est[i] = basic_est[i] + sketch_elem[i * buckets_no + j] * sketch_elem[i * buckets_no + j];
+	basic_est[i] = 0.0;
+	for (int j = 0; j < buckets_no; j++)
+	  basic_est[i] = basic_est[i] + sketch_elem[i * buckets_no + j] * sketch_elem[i * buckets_no + j];
   }
 
   double result = Median(basic_est, rows_no);
@@ -279,7 +280,7 @@ Fast_Count_Sketch::Fast_Count_Sketch(unsigned int buckets_no, unsigned int rows_
 
   this->sketch_elem = new double[buckets_no * rows_no];
   for (int i = 0; i < buckets_no * rows_no; i++)
-    this->sketch_elem[i] = 0.0;
+	this->sketch_elem[i] = 0.0;
 }
 
 
@@ -298,7 +299,7 @@ Fast_Count_Sketch::~Fast_Count_Sketch()
 void Fast_Count_Sketch::Clear_Sketch()
 {
   for (int i = 0; i < buckets_no * rows_no; i++)
-    sketch_elem[i] = 0.0;
+	sketch_elem[i] = 0.0;
 }
 
 
@@ -306,8 +307,8 @@ void Fast_Count_Sketch::Update_Sketch(unsigned int key, double func)
 {
   for (int i = 0; i < rows_no; i++)
   {
-    int bucket = (int)xi_bucket[i]->element(key);
-    sketch_elem[i * buckets_no + bucket] = sketch_elem[i * buckets_no + bucket] + func;
+	int bucket = (int)xi_bucket[i]->element(key);
+	sketch_elem[i * buckets_no + bucket] = sketch_elem[i * buckets_no + bucket] + func;
   }
 }
 
@@ -317,17 +318,17 @@ double Fast_Count_Sketch::Size_Of_Join(Sketch *s1)
   double *basic_est = new double[rows_no];
   for (int i = 0; i < rows_no; i++)
   {
-    double L1 = 0.0;
-    double L1p = 0.0;
-    double L2 = 0.0;
-    for (int j = 0; j < buckets_no; j++)
-    {
-      L1 = L1 + sketch_elem[i * buckets_no + j];
-      L1p = L1p + ((Fast_Count_Sketch*)s1)->sketch_elem[i * buckets_no + j];
-      L2 = L2 + sketch_elem[i * buckets_no + j] * ((Fast_Count_Sketch*)s1)->sketch_elem[i * buckets_no + j];
-    }
+	double L1 = 0.0;
+	double L1p = 0.0;
+	double L2 = 0.0;
+	for (int j = 0; j < buckets_no; j++)
+	{
+	  L1 = L1 + sketch_elem[i * buckets_no + j];
+	  L1p = L1p + ((Fast_Count_Sketch*)s1)->sketch_elem[i * buckets_no + j];
+	  L2 = L2 + sketch_elem[i * buckets_no + j] * ((Fast_Count_Sketch*)s1)->sketch_elem[i * buckets_no + j];
+	}
 
-    basic_est[i] = 1.0 / ((double)buckets_no - 1) * ((double)buckets_no * L2 - L1 * L1p);
+	basic_est[i] = 1.0 / ((double)buckets_no - 1) * ((double)buckets_no * L2 - L1 * L1p);
   }
 
   double result = Average(basic_est, rows_no);
@@ -343,15 +344,15 @@ double Fast_Count_Sketch::Self_Join_Size()
   double *basic_est = new double[rows_no];
   for (int i = 0; i < rows_no; i++)
   {
-    double L1 = 0.0;
-    double L2 = 0.0;
-    for (int j = 0; j < buckets_no; j++)
-    {
-      L1 = L1 + sketch_elem[i * buckets_no + j];
-      L2 = L2 + sketch_elem[i * buckets_no + j] * sketch_elem[i * buckets_no + j];
-    }
+	double L1 = 0.0;
+	double L2 = 0.0;
+	for (int j = 0; j < buckets_no; j++)
+	{
+	  L1 = L1 + sketch_elem[i * buckets_no + j];
+	  L2 = L2 + sketch_elem[i * buckets_no + j] * sketch_elem[i * buckets_no + j];
+	}
 
-    basic_est[i] = 1.0 / ((double)buckets_no - 1) * ((double)buckets_no * L2 - L1 * L1);
+	basic_est[i] = 1.0 / ((double)buckets_no - 1) * ((double)buckets_no * L2 - L1 * L1);
   }
 
   double result = Average(basic_est, rows_no);
@@ -381,7 +382,7 @@ Count_Min_Sketch::Count_Min_Sketch(unsigned int buckets_no, unsigned int rows_no
   //printf("size of counter array %lu \n",  sizeof(int)*(buckets_no * rows_no) + 64-(sizeof(int)*(buckets_no * rows_no))%64);
   this->sketch_elem = new volatile int[buckets_no * rows_no];
   for (int i = 0; i < buckets_no * rows_no; i++)
-    this->sketch_elem[i] = 0.0;
+	this->sketch_elem[i] = 0.0;
   this->theGlobalSketch = NULL;
 
   this->queue = new moodycamel::ConcurrentQueue<int>;
@@ -400,24 +401,24 @@ Count_Min_Sketch::~Count_Min_Sketch()
 }
 
 void Count_Min_Sketch::enqueueRequest(unsigned int key){
-    this->queue->enqueue(key);
+	this->queue->enqueue(key);
 }
 
 void Count_Min_Sketch::serveAllRequests(){
-    unsigned int item;
-    while(this->queue->try_dequeue(item)){
-        this->Update_Sketch(item, 1);
-    }
+	unsigned int item;
+	while(this->queue->try_dequeue(item)){
+		this->Update_Sketch(item, 1);
+	}
 }
 void Count_Min_Sketch::SetGlobalSketch(Count_Min_Sketch * theGlobalSketch)
 {
-    this->theGlobalSketch = theGlobalSketch;
+	this->theGlobalSketch = theGlobalSketch;
 }
 
 void Count_Min_Sketch::Clear_Sketch()
 {
   for (int i = 0; i < buckets_no * rows_no; i++)
-    sketch_elem[i] = 0.0;
+	sketch_elem[i] = 0.0;
 }
 
 
@@ -425,8 +426,8 @@ void Count_Min_Sketch::Update_Sketch(unsigned int key, double func)
 {
   for (int i = 0; i < rows_no; i++)
   {
-    int bucket = (int)xi_bucket[i]->element(key);
-    sketch_elem[i * buckets_no + bucket] = sketch_elem[i * buckets_no + bucket] + func;
+	int bucket = (int)xi_bucket[i]->element(key);
+	sketch_elem[i * buckets_no + bucket] = sketch_elem[i * buckets_no + bucket] + func;
   }
 }
 
@@ -435,12 +436,12 @@ double Count_Min_Sketch::Update_Sketch_and_Query(unsigned int key, double func)
   unsigned int min_count = UINT_MAX;
   for (int i = 0; i < rows_no; i++)
   {
-    int bucket = (int)xi_bucket[i]->element(key);
-    sketch_elem[i * buckets_no + bucket] = sketch_elem[i * buckets_no + bucket] + func;
-    if (sketch_elem[i * buckets_no + bucket] < min_count)
-    {
-	    min_count = sketch_elem[i * buckets_no + bucket];
-    }
+	int bucket = (int)xi_bucket[i]->element(key);
+	sketch_elem[i * buckets_no + bucket] = sketch_elem[i * buckets_no + bucket] + func;
+	if (sketch_elem[i * buckets_no + bucket] < min_count)
+	{
+		min_count = sketch_elem[i * buckets_no + bucket];
+	}
   }
   return min_count;
 }
@@ -449,8 +450,8 @@ void Count_Min_Sketch::Update_Sketch_Atomics(unsigned int key, unsigned int func
 {
   for (int i = 0; i < rows_no; i++)
   {
-    int bucket = (int)xi_bucket[i]->element(key);
-    __sync_fetch_and_add(&sketch_elem[i * buckets_no + bucket], func); //FIXME: change all func to ints so I can use them in fetch_and_add
+	int bucket = (int)xi_bucket[i]->element(key);
+	__sync_fetch_and_add(&sketch_elem[i * buckets_no + bucket], func); //FIXME: change all func to ints so I can use them in fetch_and_add
   }
 }
 
@@ -458,12 +459,12 @@ void Count_Min_Sketch::Update_Sketch_Hybrid(unsigned int key, double func, int s
 {
   for (int i = 0; i < rows_no; i++)
   {
-    int bucket = (int)xi_bucket[i]->element(key);
-    sketch_elem[i * buckets_no + bucket] = sketch_elem[i * buckets_no + bucket] + func;
-    if (sketch_elem[i * buckets_no + bucket] == slack){
-       sketch_elem[i * buckets_no + bucket] = 0;
-       theGlobalSketch->incrementRawCounter(i * buckets_no + bucket, slack);
-    }
+	int bucket = (int)xi_bucket[i]->element(key);
+	sketch_elem[i * buckets_no + bucket] = sketch_elem[i * buckets_no + bucket] + func;
+	if (sketch_elem[i * buckets_no + bucket] == slack){
+	   sketch_elem[i * buckets_no + bucket] = 0;
+	   theGlobalSketch->incrementRawCounter(i * buckets_no + bucket, slack);
+	}
   }
 }
 
@@ -476,11 +477,11 @@ double Count_Min_Sketch::Query_Sketch(unsigned int key)
   unsigned int min_count = UINT_MAX;
   for (int i = 0; i < rows_no; i++)
   {
-    int bucket = (int)xi_bucket[i]->element(key);
-    if (sketch_elem[i * buckets_no + bucket] < min_count)
-    {
-	    min_count = sketch_elem[i * buckets_no + bucket];
-    }
+	int bucket = (int)xi_bucket[i]->element(key);
+	if (sketch_elem[i * buckets_no + bucket] < min_count)
+	{
+		min_count = sketch_elem[i * buckets_no + bucket];
+	}
   }
   return min_count;
 }
@@ -491,9 +492,9 @@ double Count_Min_Sketch::Size_Of_Join(Sketch *s1)
   double *basic_est = new double[rows_no];
   for (int i = 0; i < rows_no; i++)
   {
-    basic_est[i] = 0.0;
-    for (int j = 0; j < buckets_no; j++)
-      basic_est[i] = basic_est[i] + sketch_elem[i * buckets_no + j] * ((Count_Min_Sketch*)s1)->sketch_elem[i * buckets_no + j];
+	basic_est[i] = 0.0;
+	for (int j = 0; j < buckets_no; j++)
+	  basic_est[i] = basic_est[i] + sketch_elem[i * buckets_no + j] * ((Count_Min_Sketch*)s1)->sketch_elem[i * buckets_no + j];
   }
 
   double result = Min(basic_est, rows_no);
@@ -509,9 +510,9 @@ double Count_Min_Sketch::Self_Join_Size()
   double *basic_est = new double[rows_no];
   for (int i = 0; i < rows_no; i++)
   {
-    basic_est[i] = 0.0;
-    for (int j = 0; j < buckets_no; j++)
-      basic_est[i] = basic_est[i] + sketch_elem[i * buckets_no + j] * sketch_elem[i * buckets_no + j];
+	basic_est[i] = 0.0;
+	for (int j = 0; j < buckets_no; j++)
+	  basic_est[i] = basic_est[i] + sketch_elem[i * buckets_no + j] * sketch_elem[i * buckets_no + j];
   }
 
   double result = Min(basic_est, rows_no);
@@ -522,4 +523,120 @@ double Count_Min_Sketch::Self_Join_Size()
 }
 
 
+/* Topkapi implementation */
+/* topkapi consists of several frequent algorithm & count min sketch hybrids */
 
+Frequent_CM_Sketch::Frequent_CM_Sketch(unsigned int buckets_no, unsigned int rows_no, Xi **xi_bucket)
+{
+  this->buckets_no = buckets_no;
+  this->rows_no = rows_no;
+
+  this->xi_bucket = xi_bucket;
+
+  //this->sketch_elem = (volatile int *)aligned_alloc(64, 64*sizeof(int)*(buckets_no * rows_no));
+  //this->sketch_elem = (volatile int *)aligned_alloc(64, 4*sizeof(int)*(buckets_no * rows_no) + 64-(sizeof(int)*(buckets_no * rows_no))%64);
+  //printf("size of counter array %lu \n",  sizeof(int)*(buckets_no * rows_no) + 64-(sizeof(int)*(buckets_no * rows_no))%64);
+  this->sketch_elem = new std::pair<uint32_t,uint32_t>[buckets_no * rows_no];
+  for (int i = 0; i < buckets_no * rows_no; i++){
+	this->sketch_elem[i].first = -1;
+	this->sketch_elem[i].second = 0;
+  }
+}
+
+Frequent_CM_Sketch::~Frequent_CM_Sketch()
+{
+  buckets_no = 0;
+  rows_no = 0;
+
+  xi_bucket = NULL;
+
+  delete [] sketch_elem;
+  sketch_elem = NULL;
+}
+
+void Frequent_CM_Sketch::Clear_Sketch()
+{
+  for (int i = 0; i < buckets_no * rows_no; i++){
+	sketch_elem[i].first = 0; 
+  sketch_elem[i].second = 0;
+  }
+}
+
+void Frequent_CM_Sketch::Update_Sketch(unsigned int key,double increment)
+{
+	for (int i = 0; i < rows_no; i++){
+		int bucket = (int)xi_bucket[i]->element(key);
+		if (sketch_elem[i * buckets_no + bucket].first == key){
+			sketch_elem[i * buckets_no + bucket].second++;
+		}
+		else{
+      if (sketch_elem[i * buckets_no + bucket].second != 0){
+			  sketch_elem[i * buckets_no + bucket].second--;
+      }
+			if (sketch_elem[i * buckets_no + bucket].second < 1){
+				sketch_elem[i * buckets_no + bucket].first=key;
+				sketch_elem[i * buckets_no + bucket].second=1;
+			}
+		}
+  	}	
+    //printf("updated\n%u",key);
+}
+
+
+void Frequent_CM_Sketch::Merge_Local_Sketch(Frequent_CM_Sketch* s2, int numberOfThreads)
+{
+}
+
+/* 1. Scan the first row of the Count-Min Sketch for heavyhitters
+    2. For each heavyhitter, hash it and see what the heavyhitter is in the subsequent rows */
+void Frequent_CM_Sketch::Query_Local_Sketch(std::unordered_map<uint32_t,uint32_t>* res)
+{
+	const int threshold = (int) ((buckets_no/100) - 
+						(buckets_no/(100*10)));
+  	/* linear scan over the first row */
+	for (int i = 0; i < buckets_no; i++){
+      std::pair<uint32_t,uint32_t> entry = sketch_elem[i];
+      std::unordered_map<uint32_t, uint32_t>::iterator it = res->find(entry.first);
+      if(it != res->end()){
+        it->second+=entry.second;
+      }
+      else{
+        res->insert(entry);
+      }
+  	}
+}
+
+double Frequent_CM_Sketch::Self_Join_Size()
+{
+  double *basic_est = new double[rows_no];
+  for (int i = 0; i < rows_no; i++)
+  {
+	basic_est[i] = 0.0;
+	for (int j = 0; j < buckets_no; j++)
+	  basic_est[i] = basic_est[i] + sketch_elem[i * buckets_no + j].second * sketch_elem[i * buckets_no + j].second;
+  }
+
+  double result = Min(basic_est, rows_no);
+
+  delete [] basic_est;
+
+  return result;
+}
+
+
+double Frequent_CM_Sketch::Size_Of_Join(Sketch *s1)
+{
+  double *basic_est = new double[rows_no];
+  for (int i = 0; i < rows_no; i++)
+  {
+	basic_est[i] = 0.0;
+	for (int j = 0; j < buckets_no; j++)
+	  basic_est[i] = basic_est[i] + sketch_elem[i * buckets_no + j].second * ((Frequent_CM_Sketch*)s1)->sketch_elem[i * buckets_no + j].second;
+  }
+
+  double result = Min(basic_est, rows_no);
+
+  delete [] basic_est;
+
+  return result;
+}

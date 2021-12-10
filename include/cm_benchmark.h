@@ -64,9 +64,15 @@
 #define ACCURACY 0
 #endif
 
+#ifndef TOPKAPI
+#define TOPKAPI 0
+#endif
+
 #ifndef ITHACA
 #define ITHACA 0
 #endif
+
+#define LATENCY 1 
 
 int QUERRY_RATE;
 int TOPK_QUERY_RATE;

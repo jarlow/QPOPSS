@@ -9,8 +9,11 @@
 #include "libdivide.h"
 #include <unordered_set>
 #include "lossycount.h"
+#include "LossyCountMinSketch.h"
 
 //#define FILTER_SIZE 64
+#define BUCKETS 512 //256//64
+#define BUCKETS_SQ 262144 //65536//4096
 
 typedef struct Filter_T{
     uint32_t *filter_id;
@@ -49,6 +52,12 @@ FilterStruct * pop(FilterStruct * volatile * headPointer){
 
 typedef struct
 {
+    LossySketch* th_local_sketch;
+    Xi** randoms;
+    Frequent_CM_Sketch* topkapi_instance;
+    int* buckets; // for cardinality estimation;
+    float sum_of_buckets=0;// for cardinality estimation;
+    int* latencies;
     uint64_t numInsertedFilters=0;
     uint64_t accumFilters=0;
     vector<pair<uint32_t,uint32_t>> lasttopk; 
