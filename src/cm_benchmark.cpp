@@ -378,6 +378,76 @@ bool sortbysecdesc(const pair<uint32_t,uint32_t> &a,
        return a.second>b.second;
 }
 
+void topkapi_query_merge(threadDataStruct *localThreadData, int buckets_no){
+        localThreadData->lasttopk.clear();
+        LossySketch* th_local_sketch = localThreadData->th_local_sketch;
+        LossySketch*  merged = (LossySketch* ) malloc(rows_no*sizeof(LossySketch));
+        for (int th_i = 0; th_i < rows_no; ++th_i){
+            allocate_sketch( &merged[th_i], buckets_no);
+        }
+        for (int i = 0; i < rows_no; ++i){
+            local_merge_sketch(merged,th_local_sketch, numberOfThreads, rows_no, i);
+        }
+        std::map<int,int> topk_words;
+        std::map<int,int>::reverse_iterator rit;
+        int num_heavy_hitter = 0;
+        int count;
+        uint32_t elem;
+        int i,j;
+        int id;
+        int range=buckets_no;
+        int frac_epsilon=K*10;
+        int* is_heavy_hitter = (int* )malloc(range*sizeof(int));
+        int threshold = (int) ((range/K) - 
+                            (range/frac_epsilon));
+
+        for (i = 0; i < range; ++i){
+            is_heavy_hitter[i] = FALSE;
+            for (j = 0; j < rows_no; ++j){
+                if ( j == 0){
+                    elem = merged->identity[i];
+                    count = merged->lossyCount[i];
+                    if (count >= threshold)
+                    {
+                        is_heavy_hitter[i] = TRUE;
+                    }
+                } 
+                else {
+                    id = threadData->randoms[j]->element(elem);
+                if ((merged[j].identity[id] !=  elem) )
+                {
+                    continue;
+                } else if (merged[j].lossyCount[id] >= threshold)
+                {
+                    is_heavy_hitter[i] = TRUE;
+                }
+                if (merged[j].lossyCount[id] > count)
+                    count = merged[j].lossyCount[id];
+                }
+            }
+            merged->lossyCount[i] = count;
+            }
+
+            for (i = 0; i < range; ++i)
+            {
+                if (is_heavy_hitter[i])
+                {
+                    num_heavy_hitter ++;
+                    topk_words.insert( std::pair<int,int>(merged->lossyCount[i], i) );
+                }
+            }
+
+            for (i = 0, rit = topk_words.rbegin(); 
+                (i < K) && (rit != topk_words.rend()); 
+                    ++i, ++rit)
+            {
+                j = rit->second;
+                localThreadData->lasttopk.push_back(make_pair(merged->identity[j],rit->first));
+            }
+        /* free memories */
+        free(is_heavy_hitter);
+}
+
 void topkapi_query(threadDataStruct * localThreadData,int K,float phi,vector<pair<uint32_t,uint32_t>>* v ){
     v->clear();
     std::unordered_map<uint32_t,uint32_t> res;
@@ -506,6 +576,7 @@ void threadWork(threadDataStruct *localThreadData)
                 FEquery(localThreadData,K,PHI,&(localThreadData->lasttopk));
                 #elif TOPKAPI
                 //topkapi_query(localThreadData,K,PHI,&(localThreadData->lasttopk));
+                topkapi_query_merge(localThreadData,1024);
                 #endif
 
                 #if LATENCY
@@ -943,68 +1014,7 @@ int main(int argc, char **argv)
         #if SPACESAVING
         FEquery(&(threadData[0]),K,PHI,&(threadData[0].lasttopk));
         #elif TOPKAPI
-        for (int i = 0; i < rows_no; ++i){
-            local_merge_sketch(th_local_sketch, numberOfThreads, rows_no, i);
-        }
-        std::map<int,int> topk_words;
-        std::map<int,int>::reverse_iterator rit;
-        int num_heavy_hitter = 0;
-        int count;
-        uint32_t elem;
-        int i,j;
-        int id;
-        int range=buckets_no;
-        int frac_epsilon=K*10;
-        int* is_heavy_hitter = (int* )malloc(range*sizeof(int));
-        int threshold = (int) ((range/K) - 
-                            (range/frac_epsilon));
-
-        for (i = 0; i < range; ++i){
-            is_heavy_hitter[i] = FALSE;
-            for (j = 0; j < rows_no; ++j){
-                if ( j == 0){
-                elem = th_local_sketch->identity[i];
-                count = th_local_sketch->lossyCount[i];
-                if (count >= threshold)
-                {
-                    is_heavy_hitter[i] = TRUE;
-                }
-                } else {
-                id = threadData->randoms[j]->element(elem);
-                if ((th_local_sketch[j].identity[id] !=  elem) )
-                {
-                    continue;
-                } else if (th_local_sketch[j].lossyCount[id] >= threshold)
-                {
-                    is_heavy_hitter[i] = TRUE;
-                }
-                if (th_local_sketch[j].lossyCount[id] > count)
-                    count = th_local_sketch[j].lossyCount[id];
-                }
-            }
-            th_local_sketch->lossyCount[i] = count;
-            }
-
-            for (i = 0; i < range; ++i)
-            {
-            if (is_heavy_hitter[i])
-            {
-                num_heavy_hitter ++;
-                topk_words.insert( std::pair<int,int>(th_local_sketch->lossyCount[i], i) );
-            }
-            }
-
-            for (i = 0, rit = topk_words.rbegin(); 
-                (i < K) && (rit != topk_words.rend()); 
-                    ++i, ++rit)
-            {
-            j = rit->second;
-            printf( "%u %d\n", th_local_sketch->identity[j], 
-                        rit->first);
-        }
-        /* free memories */
-        free(is_heavy_hitter); 
-        
+        topkapi_query_merge(&threadData[0],buckets_no);
         //topkapi_query(&(threadData[0]),K,PHI,&(threadData[0].lasttopk));
         #endif
         #endif

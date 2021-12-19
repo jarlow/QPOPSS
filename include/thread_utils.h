@@ -40,7 +40,7 @@ void initThreadData(Count_Min_Sketch ** sketchArray, Relation * relation,int MAX
         threadData[i].theData = relation;
         threadData[i].elementsProcessed = 0;
         threadData[i].buckets = (int*) calloc(BUCKETS/numberOfThreads + 1,sizeof(int)); // Cardinality estimation
-        threadData[i].latencies = (int*) malloc(num_queries*sizeof(int) + 1000*sizeof(int));
+        threadData[i].latencies = (int*) malloc(2*num_queries*sizeof(int));
 
         //debug
         threadData[i].uniques=new std::unordered_set<int>;

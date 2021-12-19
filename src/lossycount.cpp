@@ -2,8 +2,9 @@
 #include <stdio.h>
 #include "lossycount.h"
 #include "prng.h"
-#include <stack>
 #include <algorithm>
+#include "plf_stack.h"
+
 /********************************************************************
 Implementation of Lossy Counting algorithm to Find Frequent Items
 Based on the paper of Manku and Motwani, 2002
@@ -483,8 +484,8 @@ LCL_type * LCL_Init(float fPhi)
 	LCL_type *result = (LCL_type *) calloc(1,sizeof(LCL_type));
 	// needs to be odd so that the heap always has either both children or 
 	// no children present in the data structure
-	//result->size = (1 + k) | 1; // ensure that size is odd
-	result->size = (1 + k) | 1; // For minmax heap, ensure any node has either granchildren or no grandchild
+	result->size = (1 + k) | 1; // ensure that size is odd
+	//result->size = (1 + k) | 3; // For minmax heap, ensure any node has either granchildren or no grandchild
 	result->hashsize = LCL_HASHMULT*result->size;
 	result->hashtable=(LCLCounter **) calloc(result->hashsize,sizeof(LCLCounter*));
 	result->counters=(LCLCounter*) calloc(1+result->size,sizeof(LCLCounter));
@@ -504,8 +505,8 @@ LCL_type * LCL_Init(float fPhi)
 		result->counters[i].prev=NULL;
 		result->counters[i].item=LCL_NULLITEM;
 		#if MAXHEAP
+		result->maxheap[i]=&(result->counters[i]);
 		result->counters[i].maxheapptr=&(result->maxheap[i]);
-		result->maxheap[i]=&result->counters[i];
 		#endif
 		// initialize items and counters to zero
 	}
@@ -523,8 +524,8 @@ LCL_type * LCL_Copy(LCL_type* original)
 	copy->counters=(LCLCounter*) calloc(1+copy->size,sizeof(LCLCounter));
 	// indexed from 1, so add 1
 
-	copy->hasha=151261303;
-	copy->hashb=6722461; // hard coded constants for the hash table,
+	//copy->hasha=151261303;
+	//copy->hashb=6722461; // hard coded constants for the hash table,
 	//should really generate these randomly
 	copy->n=original->n;
 	for (i=1; i<=copy->size;i++)
@@ -610,9 +611,7 @@ int MinHeapBubbleDown(LCL_type * lcl, int ptr)
 		minchild=&lcl->counters[mc];
 		// compute which child is the lesser of the two
 
-		if (cpt->count < minchild->count){
-			break;
-		}
+		if (cpt->count < minchild->count) break;
 		// if the parent is less than the smallest child, we can stop
 
 		tmp=*cpt;
@@ -672,7 +671,6 @@ void MaxHeapBubbleUp(LCL_type * lcl, int ptr)
 	LCLCounter * cpt, *maxchild, *parent;
 	LCLCounter ** tmpptr;
 	int pr;
-
 	while(1)
 	{
 		pr=(ptr>>1); // Parent index is floor(ptr/2) 
@@ -680,17 +678,17 @@ void MaxHeapBubbleUp(LCL_type * lcl, int ptr)
 		// Stop if parent is out of bounds, array indexed from 1.
 
 		parent = lcl->maxheap[pr];
-		cpt=lcl->maxheap[ptr]; // create a current pointer
+		cpt = lcl->maxheap[ptr]; // create a current pointer
 
-		if(parent->count >= cpt->count) break;
+		if(parent->count > cpt->count) break;
 		// If parent is larger than current pointer we are done
 
 		lcl->maxheap[ptr] = parent;
 		lcl->maxheap[pr] = cpt; 
 		// Swap pointers in maxheap array
 		
-		parent->maxheapptr=&lcl->maxheap[ptr];
-		cpt->maxheapptr=&lcl->maxheap[pr];
+		parent->maxheapptr=&(lcl->maxheap[ptr]);
+		cpt->maxheapptr=&(lcl->maxheap[pr]);
 		// Swap the pointers in hashtable to maxheap translation
 
 		ptr=pr;
@@ -829,13 +827,11 @@ void LCL_Update(LCL_type * lcl, LCLitem_t item, LCLweight_t value)
 {
 	int hashval,bubbleDownPos;
 	LCLCounter * hashptr;
-	LCLCounter ** maxheapptr;
 	// find whether new item is already stored, if so store it and add one
 	// update heap property if necessary
 
 	lcl->n+=value;
 	lcl->counters->item=0; // mark data structure as 'dirty'
-
 	hashval=(int) hash31(lcl->hasha, lcl->hashb,item) % lcl->hashsize;
 	if (hashval == 0){
 		hashval=1;
@@ -847,11 +843,11 @@ void LCL_Update(LCL_type * lcl, LCLitem_t item, LCLweight_t value)
 
 	while (hashptr) {
 		if (hashptr->item==item) {
-			maxheapptr = hashptr->maxheapptr;
+			//maxheapptr = hashptr->maxheapptr;
 			hashptr->count+=value; // increment the count of the item
-			bubbleDownPos=MinHeapBubbleDown(lcl,hashptr-lcl->counters); // and fix up the heap
+			bubbleDownPos=MinHeapBubbleDown(lcl,hashptr - lcl->counters); // and fix up the heap
 			#if MAXHEAP
-			MaxHeapBubbleUp(lcl,lcl->counters[bubbleDownPos].maxheapptr-lcl->maxheap); // fix up maxheap
+			MaxHeapBubbleUp(lcl,(lcl->counters[bubbleDownPos].maxheapptr) - lcl->maxheap); // fix up maxheap
 			#endif
 			return;
 		}
@@ -885,7 +881,7 @@ void LCL_Update(LCL_type * lcl, LCLitem_t item, LCLweight_t value)
 	lcl->root->count=value+lcl->root->delta;
 	bubbleDownPos=MinHeapBubbleDown(lcl,1); // restore heap property if needed
 	#if MAXHEAP
-	MaxHeapBubbleUp(lcl,lcl->counters[bubbleDownPos].maxheapptr-lcl->maxheap); //fix max-heap, bubble up from pos of min-heap bubble down stopped
+	MaxHeapBubbleUp(lcl,(lcl->counters[bubbleDownPos].maxheapptr) - lcl->maxheap); //fix max-heap, bubble up from pos of min-heap bubble down stopped
 	#endif
 	// return value;
 }
@@ -937,14 +933,15 @@ void LCL_Output(LCL_type * lcl, int thresh,std::vector<std::pair<uint32_t,uint32
 {
 	#if MAXHEAP
 	int curr_node;
-	std::stack<int> stack;
+	//std::stack<int> stack;
+	plf::stack<int> stack;
 	stack.push(1); // 1 is root
 	while(!stack.empty()){
 		curr_node=stack.top();
 		stack.pop();
 		if (lcl->maxheap[curr_node]->count >= thresh){
 			// add children to stack
-			if (! (((curr_node<<1) + 1) >lcl->size)){ // if not a leaf, add children
+			if (! (((curr_node<<1) + 1) > lcl->size)){ // if not a leaf, add children
 				stack.push(curr_node<<1);
 				stack.push((curr_node<<1)+1);
 			}
@@ -955,7 +952,7 @@ void LCL_Output(LCL_type * lcl, int thresh,std::vector<std::pair<uint32_t,uint32
 	const int size=lcl->size;
 	for (int i=1;i<=size;++i){
 		if (lcl->counters[i].count >= thresh){
-			v->push_back(std::make_pair((uint32_t)lcl->maxheap[i]->item,lcl->maxheap[i]->count));
+			v->push_back(std::make_pair((uint32_t)lcl->counters[i].item,lcl->counters[i].count));
 		}
 	}
 	#endif

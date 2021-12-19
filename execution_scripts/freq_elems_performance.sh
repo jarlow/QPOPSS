@@ -18,7 +18,7 @@ num_seconds=4
 N=${stream_size}
 
 ### Which experiments to run?
-vsdfsdfu=true
+vsdfsdfu=false
 vs=true
 vt=true
 
@@ -30,7 +30,7 @@ datasets["caida_dst_port"]="/home/victor/git/DelegationSpace-Saving/caida_dst_po
 
 K="55555"
 EPSILONratio="0.1"
-reps=10
+reps=2
 num_reps=$(seq $reps)
 
 num_counters_deleg (){
@@ -119,7 +119,7 @@ MAX_FILTER_UNIQUES="64"
 MAX_FILTER_SUMS="1000"
 phis="0.001 0.0001 0.00001"
 topkqueriesS="0 10 100 1000"
-versions="cm_spacesaving_deleg cm_spacesaving_single"
+versions="cm_spacesaving_deleg_maxheap cm_spacesaving_single_maxheap"
 ## Vary skew with qr and phi
 echo "------ Vary skew, query rate and phi------"
 if [ "$vs" = true ] ; then
@@ -179,12 +179,11 @@ if [ "$vs" = true ] ; then
     done
 fi
 
-
 MAX_FILTER_UNIQUES="64"
 MAX_FILTER_SUMS="1000"
 phis="0.001 0.0001 0.00001"
 topkqueriesS="0 10 100 1000"
-versions="cm_spacesaving_deleg cm_spacesaving_single"
+versions="cm_spacesaving_deleg_maxheap cm_spacesaving_single_maxheap"
 threads="4 8 12 16 20 24"
 ## Vary threads with skew 1.25
 echo "------ Vary Threads, query rate and phi------"

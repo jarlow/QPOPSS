@@ -72,7 +72,7 @@
 #define ITHACA 0
 #endif
 
-#define LATENCY 1 
+#define LATENCY 0
 
 int QUERRY_RATE;
 int TOPK_QUERY_RATE;

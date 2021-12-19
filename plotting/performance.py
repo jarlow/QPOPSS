@@ -15,7 +15,7 @@ plt.rc('legend', fontsize=16)
 matplotlib.rcParams.update({'font.size': 18})
 
 # What parameter should be varied?
-vs_dfu_dfs = True
+vs_dfu_dfs = False
 vs_phi_qr = True
 vt_phi_qr = True
 
@@ -46,7 +46,7 @@ def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_u
                             for df_max_sum in df_max_sums:
                                 for df_max_unique in df_max_uniques:
                                     for z in srs:
-                                        globname="logs/"+x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_throughput.log"
+                                        globname="logs/"+x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_maxheap_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_throughput.log"
                                         file=glob.glob(globname)[0]
                                         data = parse_throughput(file)
                                         tpavg, tpstd = average_and_std(data)      

@@ -1,12 +1,12 @@
 INCLUDE = -I. -I../include
 CPP = g++ -O2 -Wno-deprecated -pthread -g -std=c++11 $(INCLUDE) -DITHACA=$(ITHACA)
 CPPDEBUG = g++ -O2 -Wno-deprecated -pthread -std=c++11 -g $(INCLUDE)
-DEPS = thread_data.h thread_utils.h cm_benchmark.h barrier.h data_generator.h gen_scheme.h range_sum.h relation.h RM7_range_sum.h sampling.h sketches.h utils.h xis.h lossycount.h prng.h rand48.h LossyCountMinSketch.h
+DEPS = thread_data.h thread_utils.h cm_benchmark.h barrier.h data_generator.h gen_scheme.h range_sum.h relation.h RM7_range_sum.h sampling.h sketches.h utils.h xis.h lossycount.h prng.h rand48.h LossyCountMinSketch.h plf_stack.h
 BIN = ../bin
 
 all: freq_elems_performance freq_elems_accuracy
-freq_elems_performance: cm_spacesaving_deleg.out cm_spacesaving_deleg_maxheap.out cm_spacesaving_single.out cm_spacesaving_single_maxheap.out cm_topkapi.out
-freq_elems_accuracy: cm_spacesaving_deleg_accuracy.out cm_spacesaving_deleg_maxheap_accuracy.out cm_spacesaving_single_accuracy.out cm_spacesaving_single_maxheap_accuracy.out cm_topkapi_accuracy.out
+freq_elems_performance: cm_spacesaving_deleg.out cm_spacesaving_deleg_maxheap.out cm_spacesaving_single_maxheap.out cm_topkapi.out
+freq_elems_accuracy: cm_spacesaving_deleg_maxheap_accuracy.out cm_spacesaving_single_maxheap_accuracy.out cm_spacesaving_single_accuracy.out cm_spacesaving_deleg_accuracy.out cm_topkapi_accuracy.out
 
 sketch_sampling:relation.o xis.o sketches.o sampling.o sketch_sampling.o
 	$(CPP) -lgsl -lgslcblas -o sketch_sampling.out relation.o xis.o sketches.o sampling.o sketch_sampling.o
@@ -144,29 +144,29 @@ cm_delegation_filters_with_linked_list.out:relation.o xis.o sketches.o cm_delega
 	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o 
 
 ## Counting algorithms
-cm_spacesaving_single_maxheap.out : relation.o xis.o sketches.o spacesaving_single.o lossycount_maxheap.o prng.o rand48.o
-	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount_maxheap.o prng.o rand48.o
+cm_spacesaving_single_maxheap.out : relation.o xis.o sketches.o spacesaving_single.o lossycount_maxheap.o prng.o rand48.o lossycountminsketch.o
+	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount_maxheap.o prng.o rand48.o lossycountminsketch.o
 
-cm_spacesaving_deleg_maxheap.out: relation.o xis.o sketches.o spacesaving.o lossycount_maxheap.o prng.o rand48.o
-	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount_maxheap.o prng.o rand48.o
+cm_spacesaving_deleg_maxheap.out: relation.o xis.o sketches.o spacesaving.o lossycount_maxheap.o prng.o rand48.o lossycountminsketch.o
+	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount_maxheap.o prng.o rand48.o lossycountminsketch.o
 
-cm_spacesaving_deleg.out: relation.o xis.o sketches.o spacesaving.o lossycount.o prng.o rand48.o
-	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount.o prng.o rand48.o
+cm_spacesaving_deleg.out: relation.o xis.o sketches.o spacesaving.o lossycount.o prng.o rand48.o lossycountminsketch.o
+	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount.o prng.o rand48.o lossycountminsketch.o
 
-cm_spacesaving_single.out : relation.o xis.o sketches.o spacesaving_single.o lossycount.o prng.o rand48.o
-	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount.o prng.o rand48.o
+cm_spacesaving_single.out : relation.o xis.o sketches.o spacesaving_single.o lossycount.o prng.o rand48.o lossycountminsketch.o
+	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount.o prng.o rand48.o lossycountminsketch.o
 
-cm_spacesaving_deleg_accuracy.out: relation.o xis.o sketches.o spacesaving_accuracy.o lossycount.o prng.o rand48.o
-	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount.o prng.o rand48.o
+cm_spacesaving_deleg_accuracy.out: relation.o xis.o sketches.o spacesaving_accuracy.o lossycount.o prng.o rand48.o lossycountminsketch.o
+	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount.o prng.o rand48.o lossycountminsketch.o
 
-cm_spacesaving_single_accuracy.out : relation.o xis.o sketches.o spacesaving_single_accuracy.o lossycount.o prng.o rand48.o
-	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount.o prng.o rand48.o
+cm_spacesaving_single_accuracy.out : relation.o xis.o sketches.o spacesaving_single_accuracy.o lossycount.o prng.o rand48.o lossycountminsketch.o
+	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount.o prng.o rand48.o lossycountminsketch.o
 
-cm_spacesaving_single_maxheap_accuracy.out : relation.o xis.o sketches.o spacesaving_single_accuracy.o lossycount_maxheap.o prng.o rand48.o
-	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount_maxheap.o prng.o rand48.o
+cm_spacesaving_single_maxheap_accuracy.out : relation.o xis.o sketches.o spacesaving_single_accuracy.o lossycount_maxheap.o prng.o rand48.o lossycountminsketch.o
+	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount_maxheap.o prng.o rand48.o lossycountminsketch.o
 
-cm_spacesaving_deleg_maxheap_accuracy.out: relation.o xis.o sketches.o spacesaving_accuracy.o lossycount_maxheap.o prng.o rand48.o
-	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount_maxheap.o prng.o rand48.o
+cm_spacesaving_deleg_maxheap_accuracy.out: relation.o xis.o sketches.o spacesaving_accuracy.o lossycount_maxheap.o prng.o rand48.o lossycountminsketch.o
+	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount_maxheap.o prng.o rand48.o lossycountminsketch.o
 
 ##Topkapi
 cm_topkapi.out: relation.o xis.o sketches.o cm_topkapi.o lossycount.o prng.o rand48.o lossycountminsketch.o

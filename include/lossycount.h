@@ -100,20 +100,22 @@ struct lclcounter_t
 
 typedef struct LCL_type
 {
+  
   LCLweight_t n;
   int hasha, hashb, hashsize;
   int size;
   LCLCounter *root;
+
 #ifdef LCL_SIZE
   LCLCounter counters[LCL_SIZE+1]; // index from 1
-  LCLCounter maxheap[LCL_SIZE+1]; // index from 1
+  LCLCounter *maxheap[LCL_SIZE+1]; // index from 1
   LCLCounter *hashtable[LCL_SPACE]; // array of pointers to items in 'counters'
   // 24 + LCL_SIZE*(32 + LCL_HASHMULT*4) + 8
             // = 24 + 102*(32+12)*4 = 4504
             // call it 4520 for luck...
 #else
-  alignas(64) LCLCounter *counters;
-  alignas(64) LCLCounter **maxheap;
+  LCLCounter *counters;
+  LCLCounter **maxheap;
   LCLCounter ** hashtable; // array of pointers to items in 'counters'
 #endif
 } LCL_type;

@@ -30,7 +30,8 @@ void update_sketch( LossySketch* _sketch,
 /* This function merges thread local sketches to 
  * create the final sketch for a node
  */
-void local_merge_sketch( LossySketch*   LCMS,
+void local_merge_sketch(LossySketch* final, 
+                        LossySketch*   LCMS,
                          const unsigned num_local_copies,
                          const unsigned num_hash_func,
                          const unsigned hash_func_index );

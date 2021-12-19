@@ -33,7 +33,7 @@ K="55555"
 MAX_FILTER_SUMS="1000"
 MAX_FILTER_UNIQUES="64"
 
-reps=10
+reps=2
 num_reps=$(seq $reps)
 
 skew_rates="0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75 3"
@@ -67,7 +67,7 @@ phi="0.00001"
 MAX_FILTER_SUMS="100 1000 10000 100000"
 MAX_FILTER_UNIQUES="16 32 64 128"
 streamlengths="30000000"
-versions="cm_spacesaving_deleg_accuracy"
+versions="cm_spacesaving_deleg_maxheap_accuracy"
 ## Vary Skew, df_s and df_u
 echo "------ Vary Skew, df_s and df_u------"
 if [ "$vsdfsdfu" = true ] ; then 
@@ -107,7 +107,7 @@ phi="0.00001"
 MAX_FILTER_SUMS="1000"
 MAX_FILTER_UNIQUES="64"
 streamlengths="1000000 10000000 30000000"
-versions="cm_spacesaving_deleg_accuracy cm_spacesaving_single_accuracy"
+versions="cm_spacesaving_deleg_maxheap_accuracy cm_spacesaving_single_maxheap_accuracy"
 ## Vary Skew and N
 echo "------Vary Skew and N------"
 if [ "$vsN" = true ] ; then 
@@ -154,7 +154,7 @@ phis="0.001 0.0001 0.00001"
 MAX_FILTER_SUM="1000"
 MAX_FILTER_UNIQUE="64"
 streamlengths="30000000"
-versions="cm_spacesaving_deleg_accuracy cm_spacesaving_single_accuracy"
+versions="cm_spacesaving_deleg_maxheap_accuracy cm_spacesaving_single_maxheap_accuracy"
 ## Vary Skew and phi (query rate has no effect on accuracy)
 echo "------ Vary Skew and phi ------"
 if [ "$vs" = true ] ; then 
@@ -204,7 +204,7 @@ MAX_FILTER_UNIQUE="64"
 streamlengths="30000000"
 threads="4 8 12 16 20 24"
 skew="1.25" 
-versions="cm_spacesaving_deleg_accuracy cm_spacesaving_single_accuracy"
+versions="cm_spacesaving_deleg_maxheap_accuracy cm_spacesaving_single_maxheap_accuracy"
 ## Vary threads, and phi
 echo "------ Vary Threads and phi------"
 if [ "$vt" = true ] ; then 

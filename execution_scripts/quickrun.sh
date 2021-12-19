@@ -40,24 +40,24 @@ rows=4
 
 universe_size=30000000
 stream_size=30000000
-skew=3
+skew=1
 num_seconds=0
 EPSILONratio="0.1"
 
 
 #Real Data
-filename="/home/victor/git/DelegationSpace-Saving/words.txt"
+#filename="/home/victor/git/DelegationSpace-Saving/words.txt"
 #filename="/home/victor/git/DelegationSpace-Saving/caida_dst_ip.txt"
 #filename="/home/victor/git/DelegationSpace-Saving/caida_dst_port.txt"
 #Synthetic data 
-#filename="" #keep empty if synthetic
-topk_rates="0"
+filename="" #keep empty if synthetic
+topk_rates="10000"
 queries="0"
-phi="0.01"
-K="100"
+phi="0.001"
+K="635"
 MAX_FILTER_SUM="1000"
 MAX_FILTER_UNIQUES="64"
-versions="cm_topkapi_accuracy cm_spacesaving_deleg_maxheap_accuracy" #"cm_spacesaving_deleg cm_spacesaving_deleg_maxheap cm_topkapi" #cm_topkapi_accuracy #cm_spacesaving_deleg_accuracy
+versions="" #"cm_spacesaving_deleg_maxheap_accuracy" #"cm_spacesaving_deleg cm_spacesaving_deleg_maxheap cm_topkapi" #cm_topkapi_accuracy #cm_spacesaving_deleg_accuracy
 for version in $versions
 do
     eps=$(echo "$phi*$EPSILONratio" | bc -l)
@@ -79,4 +79,4 @@ echo "spacesaving single"
 echo "counters: ${calgo_param}"
 new_columns=$(((buckets*rows*4 - num_thr*64)/(rows*4))) 
 echo "$universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topk_rates $K $phi $MAX_FILTER_SUM 64 $filename"
-./bin/cm_spacesaving_single_accuracy.out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topk_rates $K $phi $MAX_FILTER_SUM 64 $filename
+./bin/cm_spacesaving_single_maxheap_accuracy.out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topk_rates $K $phi $MAX_FILTER_SUM 64 $filename

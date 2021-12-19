@@ -20,7 +20,7 @@ matplotlib.rcParams.update({'font.size': 18})
 
 # What experiment(s) should we plot?
 vs_N = True
-vs_dfu_dfs = True
+vs_dfu_dfs = False
 vs_phi = True
 vt_phi = True
 
@@ -48,8 +48,11 @@ def crate_accuracy_results_df(algorithm_names,streamlens,df_max_uniques,df_max_s
                         for u in df_max_uniques:
                             for m in df_max_sums:
                                     for z in srs:
-                                        globname="logs/var_"+x_axis_name+"*" + n[0] + "_" + n[1] + "_accuracy_"+str(t)+"_"+ str(z)+"_"+str(format_float(phi))+"_"+str(m)+"_"+str(u)+"_"+str(N)+"_"+experiment_name+ds+"_accuracy.log"
+                                        globname="logs/var_"+x_axis_name+"*" + n[0] + "_" + n[1] + "*_accuracy_"+str(t)+"_"+ str(z)+"_"+str(format_float(phi))+"_"+str(m)+"_"+str(u)+"_"+str(N)+"_"+experiment_name+ds+"_accuracy.log"
+                                        
+                                        print(globname)
                                         file=glob.glob(globname)[0]
+                                        print(file)
                                         prec, rec, are = parse_accuracy(file)
                                         pavg, pstd = average_and_std(prec)
                                         ravg, rstd = average_and_std(rec)
@@ -61,7 +64,7 @@ def crate_accuracy_results_df(algorithm_names,streamlens,df_max_uniques,df_max_s
                                         counters=np.nan
                                         space=np.nan                  
                                         if space_flag:
-                                            fname_memory = glob.glob("logs/var_skew_*" + n[0] + "_" + n[1] + "_accuracy_*_" + str(z)+"_"+str(format_float(phi))+"_"+str(m)+"_"+str(u)+"_"+str(N)+"_memory.log")[0]
+                                            fname_memory = glob.glob("logs/var_skew_*" + n[0] + "_" + n[1] + "*_accuracy_*_" + str(z)+"_"+str(format_float(phi))+"_"+str(m)+"_"+str(u)+"_"+str(N)+"_memory.log")[0]
                                             space, counters = parse_memory(fname_memory)
                                         accudf.loc[len(accudf.index)] = [z,fancy_names[names.index(algname)],scinotation,u,m,pavg,ravg,areavg,t,phi_fancy,fancy_dataset_names[datasets.index(ds)],float(space),float(counters)]
     return accudf
@@ -83,21 +86,21 @@ if vs_N:
     sns.lineplot(x="Zipf Parameter", y="Average Relative Error", data=accudf[accudf.Algorithm == "Delegation Space-Saving"],
                  markersize=8, linewidth=3, markers=True, style="Algorithm", hue="Streamlength", palette="muted", ax=ax)
 
-    def rel_err_bound(a, N): return (df_max_sums[0]*24*zeta(a))/N
-    xs = np.arange(1.25, 3.25, 0.25)
-    sns.lineplot(xs, list(map(rel_err_bound, xs, [1000000]*8)), 
+    def rel_err_bound(a, N): return (df_max_sums[0]*24)/N
+    xs = np.arange(0.5, 3.25, 0.25)
+    sns.lineplot(xs, list(map(rel_err_bound, xs, [1000000]*11)), 
                 linestyle="dashed", color="b", palette="muted", ax=ax)
 
-    sns.lineplot(xs, list(map(rel_err_bound, xs, [10000000]*8)),
+    sns.lineplot(xs, list(map(rel_err_bound, xs, [10000000]*11)),
                 linestyle="dashed", color="orange", palette="muted", ax=ax)
-    sns.lineplot(xs, list(map(rel_err_bound, xs, [30000000]*8)),
+    sns.lineplot(xs, list(map(rel_err_bound, xs, [30000000]*11)),
                  linestyle="dashed", color="g", palette="muted", ax=ax)
 
     handles, labels = ax.get_legend_handles_labels()
     entry = Line2D([0], [0], linestyle="dashed",
                    lw=1.8, ms=9, mew=0.2, color='0')
     handles.append(entry)
-    labels.append(r"$\frac{df_sT\zeta(a)}{N}$")
+    labels.append(r"$\frac{mT}{N}$")
 
     plt.legend(handles, labels)
 
@@ -257,7 +260,7 @@ if vs_phi:
     skew_rates = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]
     algonames=names
     ''' ########## '''
-    accudf=crate_accuracy_results_df(algonames,streamlens,df_max_uniques,df_max_sums,[24],skew_rates,phis,"phiqr",[""],"skew",True)
+    accudf=crate_accuracy_results_df(algonames,streamlens,df_max_uniques,df_max_sums,[24],skew_rates,phis,"phi",[""],"skew",True)
 
     # Plot space difference
     newdf = pd.DataFrame(columns=["delegspace", "singlespace"])
