@@ -5,14 +5,14 @@ import numpy as np
 ''' Constants '''
 RUNTIME=4 #For how long did each repetition execute?
 
-names = ["spacesaving single", "spacesaving deleg"]
-fancy_names = ["Single Space-Saving","Delegation Space-Saving"]
+names = ["spacesaving single", "spacesaving deleg","topkapi"] #["spacesaving single", "spacesaving deleg","topkapi"]
+fancy_names = ["Single Space-Saving","Delegation Space-Saving","Topkapi"] #["Single Space-Saving","Delegation Space-Saving","Topkapi"]
 
-datasets = ["", "caida_dst_ip", "caida_dst_port"]
-fancy_dataset_names = ["Zipf", "CAIDA Dest. IPv4", "CAIDA Dest. Port"]
+datasets = ["", "flows_dirA", "flows_dirB"]
+fancy_dataset_names = ["Zipf", "CAIDA Flows DirA", "CAIDA Flows DirB"]
 
 showplots_flag = True
-saveplots_flag = False
+saveplots_flag = True
 ''' ######### '''
 
 def parse_throughput(filename):
@@ -20,6 +20,14 @@ def parse_throughput(filename):
     with open(filename,'r') as f:
         for line in f:
             perf = float(line.split()[3])
+            returnList.append(perf)
+    return returnList
+
+def parse_latency(filename):
+    returnList = []  
+    with open(filename,'r') as f:
+        for line in f:
+            perf = float(line.split()[2])
             returnList.append(perf)
     return returnList
 
