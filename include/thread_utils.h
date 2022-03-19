@@ -12,7 +12,7 @@
 
 
 void initThreadData(Count_Min_Sketch ** sketchArray, Relation * relation,int MAX_FILTER_SUM,
-                    int MAX_FILTER_UNIQUES, Frequent_CM_Sketch ** topkapi,int TOPK_QUERY_RATE, 
+                    int MAX_FILTER_UNIQUES,int TOPK_QUERY_RATE, 
                                                     int tuples_no,int numberOfThreads, LossySketch* th_local_sketch,Xi ** cm_cw2b){
     int i;
     pthread_attr_init(&attr);
@@ -23,14 +23,12 @@ void initThreadData(Count_Min_Sketch ** sketchArray, Relation * relation,int MAX
 
     threadIds = (int *) calloc(numberOfThreads, sizeof(int));
     threadData = (threadDataStruct *) calloc(numberOfThreads, sizeof(threadDataStruct));
-    int num_queries=(1/(float)100000 * TOPK_QUERY_RATE * tuples_no)/numberOfThreads;
 
     for (i=0; i<numberOfThreads; ++i){
         threadData[i].tid = i;
         threadIds[i] = i;
         threadData[i].theSketch = sketchArray[i];
         threadData[i].sketchArray  = sketchArray;
-        threadData[i].topkapi_instance = topkapi[i];
 
 
         threadData[i].th_local_sketch = th_local_sketch;
@@ -40,11 +38,8 @@ void initThreadData(Count_Min_Sketch ** sketchArray, Relation * relation,int MAX
         threadData[i].theData = relation;
         threadData[i].elementsProcessed = 0;
         threadData[i].buckets = (int*) calloc(BUCKETS/numberOfThreads + 1,sizeof(int)); // Cardinality estimation
-        threadData[i].latencies = (int*) malloc(2*num_queries*sizeof(int));
+        threadData[i].latencies = (int*) calloc(200000,sizeof(int));
 
-        //debug
-        threadData[i].uniques=new std::unordered_set<int>;
-        // 
         /*Initialize Space-Saving instance*/
         threadData[i].ss = LCL_Init(1/(float)COUNTING_PARAM);
     }
