@@ -6,6 +6,12 @@
 
 struct timeval global_timer_start,global_timer_stop;
 
+uint64_t rdtsc(){
+    unsigned int lo,hi;
+    __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
+    return ((uint64_t)hi << 32) | lo;
+}
+
 void startTime(){
     gettimeofday(&global_timer_start,NULL);
 }

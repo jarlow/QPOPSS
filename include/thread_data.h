@@ -42,6 +42,7 @@ void push(FilterStruct * filter, FilterStruct * volatile * headPointer){
 FilterStruct * pop(FilterStruct * volatile * headPointer){
     FilterStruct * volatile oldHead = *headPointer;
     FilterStruct * volatile newHead = oldHead->next;
+
     while(! __sync_bool_compare_and_swap (headPointer, oldHead, newHead)){
         oldHead = *headPointer;
         newHead = oldHead->next;
@@ -90,17 +91,17 @@ typedef struct
         char pad2[60];
     };
     int numQueries;
-    int numInserts;
+    int numOps;
     int numTopKQueries;
     uint8_t cachecounter=0; // cachecounter for each thread
     struct alignas(64){
-        uint64_t counter=0; // counter for each thread
+        uint64_t substreamSize=0; // counter for each thread
         char pad3[56];
     };
     Count_Min_Sketch ** sketchArray;
     Count_Min_Sketch * theGlobalSketch;
     pthread_mutex_t mutex;
-    int sumcounter=0;
+    uint16_t sumcounter=0;
 }threadDataStruct;
 
 Count_Min_Sketch * globalSketch;
@@ -111,6 +112,8 @@ pthread_t *threads;
 pthread_attr_t attr;
 barrier_t barrier_global;
 barrier_t barrier_started;
+barrier_t barrier_preinsert;
 volatile int startBenchmark = 0;
+volatile int startQueries = 0;
 
 #endif 
