@@ -111,3 +111,8 @@ void local_merge_sketch(LossySketch* final,
     final[hash_func_index].identity[i] = current_word;
   }
 }
+
+int topk_size(LossySketch * _sketch,int num_rows)
+{ // return the size of the data structure in bytes
+	return num_rows * (sizeof(LossySketch) + (_sketch->_b * sizeof(uint32_t)) * 2);
+}

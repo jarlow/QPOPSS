@@ -36,4 +36,6 @@ void local_merge_sketch(LossySketch* final,
                          const unsigned num_hash_func,
                          const unsigned hash_func_index );
 
+int topk_size(LossySketch * _sketch,int num_rows);
+
 #endif /* _LOSSYCOUNTMINSKETCH_H */
