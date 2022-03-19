@@ -112,7 +112,6 @@ pthread_t *threads;
 pthread_attr_t attr;
 barrier_t barrier_global;
 barrier_t barrier_started;
-barrier_t barrier_preinsert;
 volatile int startBenchmark = 0;
 volatile int startQueries = 0;
 
