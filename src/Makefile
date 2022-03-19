@@ -5,7 +5,7 @@ DEPS = thread_data.h thread_utils.h cm_benchmark.h barrier.h data_generator.h ge
 BIN = ../bin
 
 all: freq_elems_performance freq_elems_accuracy
-freq_elems_performance: cm_spacesaving_deleg.out cm_spacesaving_deleg_maxheap.out cm_spacesaving_single_maxheap.out cm_topkapi.out
+freq_elems_performance: cm_spacesaving_deleg.out cm_spacesaving_deleg_maxheap.out cm_spacesaving_single.out cm_spacesaving_single_maxheap.out cm_topkapi.out
 freq_elems_accuracy: cm_spacesaving_deleg_maxheap_accuracy.out cm_spacesaving_single_maxheap_accuracy.out cm_spacesaving_single_accuracy.out cm_spacesaving_deleg_accuracy.out cm_topkapi_accuracy.out
 
 sketch_sampling:relation.o xis.o sketches.o sampling.o sketch_sampling.o
