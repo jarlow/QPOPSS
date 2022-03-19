@@ -47,6 +47,7 @@ static inline int queryFilterIndex16(uint32_t key, uint32_t * filterIndexes){
     f_comp = _mm_packs_epi32(f_comp, t_comp);
 
     int found  = _mm_movemask_epi8(f_comp);
+
     if (found){
         return __builtin_ctz(found);
     }
@@ -162,9 +163,7 @@ static inline int tryInsertInDelegatingFilter(FilterStruct * filter, unsigned in
     else{
         filter->filter_count[qRes]++;
     }
-    //#if DEBUG
     filter->filterSum++;
-    //#endif
     return 1;
 }
 
@@ -191,22 +190,19 @@ static inline int tryInsertInDelegatingFilterWithList(FilterStruct * filter, uns
 }
 
 // Insert an element into a filter, filter is full if either max sum or max uniques are reached
-static inline int tryInsertInDelegatingFilterWithListAndMaxSum(FilterStruct * filter, unsigned int key){
+static inline void InsertInDelegatingFilterWithListAndMaxSum(FilterStruct * filter, unsigned int key){
     int qRes = queryFilterIndex(key,filter->filter_id,filter->filterCount);
+    //int qRes = queryFilterIndex16(key,filter->filter_id);
     if (qRes == -1){
-        // not in the filter but filter has space
-        if (filter->filterCount < MAX_FILTER_UNIQUES){
-            filter->filter_id[filter->filterCount] = key;
-            filter->filter_count[filter->filterCount] = 1;
-            filter->filterCount++;
-        }
-        //If i just fillled the filter, push into the queue of the owner
+		// not in the filter, insert it
+	    filter->filter_id[filter->filterCount] = key;
+		filter->filter_count[filter->filterCount] = 1;
+		filter->filterCount++;
     }
     else{
         filter->filter_count[qRes]++;
     }
     filter->filterSum++;
-    return 1;
 }
 
 

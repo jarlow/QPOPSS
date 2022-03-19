@@ -72,12 +72,20 @@
 #define ITHACA 0
 #endif
 
+#ifndef LATENCY
 #define LATENCY 0
+#endif
+
+#ifndef GENERATE_MODE
+#define GENERATE_MODE 0
+#endif
+
 
 int QUERRY_RATE;
 int TOPK_QUERY_RATE;
 int DURATION;
 int COUNTING_PARAM;
+
 void * threadEntryPoint(void * threadArgs);
 void insert(threadDataStruct * localThreadData, unsigned int key, unsigned int increment);
 #endif
