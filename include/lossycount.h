@@ -85,7 +85,6 @@ struct lclcounter_t
   volatile LCLitem_t item=0; // item identifier
   int hash = 0; // its hash value
   volatile LCLweight_t count = 0; // (upper bound on) count for the item
-  LCLweight_t delta = 0; // max possible error in count for the value
   LCLCounter *prev, *next; // pointers in doubly linked list for hashtable
   LCLCounter** maxheapptr;
 }; // 32 bytes
@@ -101,7 +100,7 @@ struct lclcounter_t
 typedef struct LCL_type
 {
   
-  LCLweight_t n;
+  LCLweight_t error;
   int hasha, hashb, hashsize;
   int size;
   LCLCounter *root;

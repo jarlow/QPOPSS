@@ -497,7 +497,7 @@ LCL_type * LCL_Init(float fPhi)
 	result->hasha=151261303;
 	result->hashb=6722461; // hard coded constants for the hash table,
 	//should really generate these randomly
-	result->n=(LCLweight_t) 0;
+	result->error=(LCLweight_t) 0;
 
 	for (i=1; i<=result->size;i++)
 	{
@@ -512,55 +512,6 @@ LCL_type * LCL_Init(float fPhi)
 	}
 	result->root=&result->counters[1]; // put in a pointer to the top of the heap
 	return(result);
-}
-
-LCL_type * LCL_Copy(LCL_type* original)
-{
-	LCL_type *copy = (LCL_type *) calloc(1,sizeof(LCL_type));
-	int i;
-	copy->size=original->size;
-	copy->hashsize=original->hashsize;
-	copy->hashtable=(LCLCounter **) calloc(copy->hashsize,sizeof(LCLCounter*));
-	copy->counters=(LCLCounter*) calloc(1+copy->size,sizeof(LCLCounter));
-	// indexed from 1, so add 1
-
-	//copy->hasha=151261303;
-	//copy->hashb=6722461; // hard coded constants for the hash table,
-	//should really generate these randomly
-	copy->n=original->n;
-	for (i=1; i<=copy->size;i++)
-	{	
-		// Copy trivially copyable data
-		copy->counters[i].item=original->counters[i].item;
-		copy->counters[i].hash=original->counters[i].hash;
-		copy->counters[i].delta=original->counters[i].delta;
-		copy->counters[i].count=original->counters[i].count;
-		copy->counters[i].next = NULL;
-		copy->counters[i].prev = NULL;
-
-		//Build hashtable 
-		if (copy->counters[i].hash != 0){ // hashes are initialized to 0, make sure we dont include 0hashes (trouble when copying a fresh ss instance)
-			LCLCounter* hashptr = copy->hashtable[copy->counters[i].hash];
-			if (!hashptr) { // Dosnt exist in hashtable, create new node
-				copy->hashtable[copy->counters[i].hash]=&copy->counters[i];
-				//copy->hashtable[copy->counters[i].hash]->prev = NULL;
-				//copy->hashtable[copy->counters[i].hash]->next = NULL;
-			}
-			else{ // Does exist in hashtable, extend the linkedlist
-				while (hashptr->next){ //fast-forward until the end
-					hashptr=hashptr->next;
-				}
-				// Attach new node in place of NULL, Move NULL back and attach a back-pointer to previous last.
-				hashptr->next=&copy->counters[i];
-				//hashptr->next->next=NULL;
-				hashptr->next->prev = hashptr;
-			} 
-		}
-	}
-	
-	//printf("min:%u element:%u, root orig elem: %u\n",copy->counters[1].count, copy->counters[1].item,original->root->item);
-	copy->root=&copy->counters[1]; // put in a pointer to the top of the heap
-	return(copy);
 }
 
 void LCL_Destroy(LCL_type * lcl)
@@ -830,7 +781,6 @@ void LCL_Update(LCL_type * lcl, LCLitem_t item, LCLweight_t value)
 	// find whether new item is already stored, if so store it and add one
 	// update heap property if necessary
 
-	lcl->n+=value;
 	lcl->counters->item=0; // mark data structure as 'dirty'
 	hashval=(int) hash31(lcl->hasha, lcl->hashb,item) % lcl->hashsize;
 	if (hashval == 0){
@@ -874,11 +824,11 @@ void LCL_Update(LCL_type * lcl, LCLitem_t item, LCLweight_t value)
 	lcl->root->prev=NULL;
 	lcl->root->item=item;
 	lcl->root->hash=hashval;
-	lcl->root->delta=lcl->root->count;
+	lcl->error=lcl->root->count;
 	// update the implicit lower bound on the items frequency
 	//  value+=lcl->root->delta;
 	// update the upper bound on the items frequency
-	lcl->root->count=value+lcl->root->delta;
+	lcl->root->count=value+lcl->error;
 	bubbleDownPos=MinHeapBubbleDown(lcl,1); // restore heap property if needed
 	#if MAXHEAP
 	MaxHeapBubbleUp(lcl,(lcl->counters[bubbleDownPos].maxheapptr) - lcl->maxheap); //fix max-heap, bubble up from pos of min-heap bubble down stopped
@@ -889,6 +839,7 @@ void LCL_Update(LCL_type * lcl, LCLitem_t item, LCLweight_t value)
 int LCL_Size(LCL_type * lcl)
 { // return the size of the data structure in bytes
 	return sizeof(LCL_type) + (lcl->hashsize * sizeof(int)) + 
+		(lcl->size * sizeof(int)) + // size of maxheap 
 		(lcl->size*sizeof(LCLCounter));
 }
 
@@ -904,14 +855,9 @@ LCLweight_t LCL_PointEst(LCL_type * lcl, LCLitem_t item)
 
 LCLweight_t LCL_PointErr(LCL_type * lcl, LCLitem_t item)
 { // estimate the worst case error in the estimate of a particular item
-	LCLCounter * i;
-	i=LCL_FindItem(lcl,item);
-	if (i)
-		return(i->delta);
-	else
-		return lcl->root->delta;
+ // Modified, this implementation does not track per-element error
+	return lcl->error;
 }
-
 int LCL_cmp( const void * a, const void * b) {
 	LCLCounter * x = (LCLCounter*) a;
 	LCLCounter * y = (LCLCounter*) b;
@@ -933,7 +879,6 @@ void LCL_Output(LCL_type * lcl, int thresh,std::vector<std::pair<uint32_t,uint32
 {
 	#if MAXHEAP
 	int curr_node;
-	//std::stack<int> stack;
 	plf::stack<int> stack;
 	stack.push(1); // 1 is root
 	while(!stack.empty()){
@@ -1016,6 +961,7 @@ void LCL_ShowHeap(LCL_type * lcl)
 { // debugging routine to show the heap
 	int i, j;
 	int level=0;
+	printf("Min-heap tree:\n");
 	printf("level:%d\n",level);
 	j=1;
 	for (i=1; i<=lcl->size; i++)
@@ -1029,7 +975,12 @@ void LCL_ShowHeap(LCL_type * lcl)
 			j=2*j+1;
 		}
 	}
-	printf("\n\n");
+	printf("\nMin-heap array:\n");
+	printf("Elem:  ");
+	for (i=1; i<=lcl->size; i++){
+		printf("%d ",lcl->counters[i].item);
+	}
+	printf("\nCount: ");
 	for (i=1; i<=lcl->size; i++){
 		printf("%d ",lcl->counters[i].count);
 	}
@@ -1040,6 +991,7 @@ void LCL_ShowHeapMax(LCL_type * lcl)
 { // debugging routine to show the heap
 	int i, j;
 	int level=0;
+	printf("Max-heap tree:\n");
 	printf("level:%d\n",level);
 	j=1;
 	for (i=1; i<=lcl->size; i++)
@@ -1058,7 +1010,17 @@ void LCL_ShowHeapMax(LCL_type * lcl)
 			j=2*j+1; 
 		}
 	}
-	printf("\n\n");
+	printf("\nMax-heap array:\n");
+	printf("Elem:  ");
+	for (i=1; i<=lcl->size; i++){
+		if(lcl->maxheap[i]){
+		printf("%d ",lcl->maxheap[i]->item);
+		}
+		else{
+			printf("* ");
+		}
+	}
+	printf("\nCount: ");
 	for (i=1; i<=lcl->size; i++){
 		if(lcl->maxheap[i]){
 		printf("%d ",lcl->maxheap[i]->count);
@@ -1068,16 +1030,8 @@ void LCL_ShowHeapMax(LCL_type * lcl)
 		}
 	}
 	printf("\n");
-	for (i=1; i<=lcl->size; i++){
-		if(lcl->maxheap[i]){
-		printf("%d ",lcl->maxheap[i]->item);
-		}
-		else{
-			printf("* ");
-		}
-	}
-	printf("\n");
 }
+
 
 
 
