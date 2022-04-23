@@ -25,8 +25,8 @@
 #include <fstream>
 #include <iterator>
 #include <sstream>
+#include <iostream>
 
-#define PREINSERT 1
 #define NO_SQUASHING 0
 #define HASHA 151261303
 #define HASHB 6722461
@@ -156,20 +156,7 @@ void serveDelegatedInserts(threadDataStruct * localThreadData){
     while (localThreadData->listOfFullFilters){
         // Select first filter in queue
         FilterStruct* filter = pop(&(localThreadData->listOfFullFilters));
-        if (localThreadData->tid==1){
-        } 
-        #if DEBUG 
-        // If debug keep track of number of filters and sum inserted per thread
-        localThreadData->numInsertedFilters++;
-        localThreadData->accumFilters+=filter->filterSum;
-        for (int i=0; i<MAX_FILTER_UNIQUES;i++){
-            // Keep track of true number of uniques inserted
-            if (!localThreadData->uniques->count(filter->filter_id[i])){
-                localThreadData->num_uniques++;
-                localThreadData->uniques->insert(filter->filter_id[i]);
-            }
-        }
-        #endif
+
         // parse filter and add each element to your own filter
         for (int i=0; i<filter->filterCount;i++){
             uint32_t count = filter->filter_count[i];
@@ -186,8 +173,7 @@ void serveDelegatedInserts(threadDataStruct * localThreadData){
         }
         // mark filter as empty
         filter->filterCount = 0;
-        filter->filterSum = 0;
-        filter->filterFull = 0;
+        filter->filterFull = false;
     }
     // release mutex lock
     pthread_mutex_unlock(&localThreadData->mutex);
@@ -240,41 +226,41 @@ void serveDelegatedInsertsAndQueries(threadDataStruct *localThreadData){
 }
 
 static inline void insertSingleSS(threadDataStruct * localThreadData, unsigned int key){
-    LCL_Update(threadData[0].ss,key,1);
+    LCL_Update(localThreadData->ss,key,1);
     localThreadData->substreamSize++;
 	return;
 }
 
 static inline void delegateInsert(threadDataStruct * localThreadData, unsigned int key, unsigned int increment, int owner){
-    FilterStruct  * filter = &(filterMatrix[localThreadData->tid * (numberOfThreads) + owner]);
+    FilterStruct* filter = &(filterMatrix[localThreadData->tid * (numberOfThreads) + owner]);
+
     InsertInDelegatingFilterWithListAndMaxSum(filter, key);
     localThreadData->sumcounter++;
     localThreadData->substreamSize++;
 
-    // Push all filters that contain at least 1 element when full or max sum
-    while (filter->filterFull && startBenchmark){
-        serveDelegatedInserts(localThreadData);
-    }
+    
 	// If the current filter contains max uniques, or if the number of inserts since last window is equal to max, flush all filters 
     if (filter->filterCount == MAX_FILTER_UNIQUES || localThreadData->sumcounter == MAX_FILTER_SUM ){
         // push all filters to the other threads 
         for (int i=0;i< numberOfThreads;i++){
             filter = &(filterMatrix[localThreadData->tid * (numberOfThreads) + i]);
-            if (filter->filterCount > 0){
-                filter->filterFull=1;
+            if ( filter->filterCount > 0){
                 threadDataStruct * owningThread = &(threadData[i]);
+                filter->filterFull = true;
                 push(filter, &(owningThread->listOfFullFilters));
             }
         }
+
         // Make sure all filters are empty before continuing
         for (int i=0;i< numberOfThreads;i++){
             filter = &(filterMatrix[localThreadData->tid * (numberOfThreads) + i]);
-            while( filter->filterFull && startBenchmark){  
+            while(filter->filterFull && startBenchmark){
                 serveDelegatedInserts(localThreadData);
             }
         }
         localThreadData->sumcounter=0;     
     }
+    
 }
 
 unsigned int delegateQuery(threadDataStruct * localThreadData, unsigned int key){
@@ -533,7 +519,7 @@ void threadWork(threadDataStruct *localThreadData)
                 #endif
 
                 #if LATENCY
-                localThreadData->latencies[numTopKQueries >= 200000 ? numTopKQueries % 200000 : numTopKQueries]=rdtsc() - tick;
+                localThreadData->latencies[numTopKQueries >= 2000000 ? numTopKQueries % 2000000 : numTopKQueries]=rdtsc() - tick;
                 //printf("after: %lu\n",rdtsc() - tick); // Latency measurement
                 #endif
                 numTopKQueries++;
@@ -546,14 +532,8 @@ void threadWork(threadDataStruct *localThreadData)
             // int old_owner = key - numberOfThreads * libdivide::libdivide_s32_do((uint32_t)key, fastDivHandle);
             int owner = findOwner(key);
             delegateInsert(localThreadData, key, 1, owner);
-            #elif AUGMENTED_SKETCH
-            insertFilterNoWriteBack(localThreadData, key, 1);
-            #elif USE_FILTER
-            insertFilterWithWriteBack(localThreadData, key);
             #elif SINGLE
 			insertSingleSS(localThreadData,key);
-            #else
-            insert(localThreadData, key, 1);
             #endif
         }
         //If duration is 0 then I only loop once over the input. This is to do accuracy tests.
@@ -604,8 +584,6 @@ void * threadEntryPoint(void * threadArgs){
         localThreadData->pendingQueriesKeys[i] = -1;
         localThreadData->pendingTopKQueriesFlags[i] = 0.0;
     }
-    //struct libdivide::libdivide_s32_t fast_d = libdivide::libdivide_s32_gen((int32_t)numberOfThreads);
-    //localThreadData->fastDivHandle = &fast_d;
 
     localThreadData->insertsPending = 0;
     localThreadData->queriesPending = 0;
@@ -614,37 +592,31 @@ void * threadEntryPoint(void * threadArgs){
     // Insert the data once, here we let each thread process the whole dataset,
     // and let the threads cherry-pick the elements that they own.
     #if PREINSERT
-    int start;
-    int end;
-    #if DELEGATION_FILTERS
-    start=0;
-    end=tuples_no
+    int start,end;
+    #if TOPKAPI
+    start=localThreadData->startIndex;
+    end=localThreadData->endIndex;
     #else
-    start = localThreadData->startIndex;
-    end = localThreadData->endIndex;
+    start=0;
+    end=tuples_no;
     #endif
 
     for (int i = start; i < end; i++){
         uint32_t key = (*localThreadData->theData->tuples)[i];
         #if DELEGATION_FILTERS
-        serveDelegatedInserts(localThreadData);
         int owner = findOwner(key);
         if (owner == localThreadData->tid){
             LCL_Update(localThreadData->ss,key,1);
+            localThreadData->substreamSize++;
         }
-        //delegateInsert(localThreadData, key, 1, owner);
-        #elif AUGMENTED_SKETCH
-        insertFilterNoWriteBack(localThreadData, key, 1);
-        #elif USE_FILTER
-        insertFilterWithWriteBack(localThreadData, key);
+        #elif TOPKAPI
+        insert(localThreadData,key,1);
         #elif SINGLE
-        insertSingleSS(localThreadData,key);
-        #else
-        insert(localThreadData, key, 1);
+        LCL_Update(localThreadData->ss,key,1);
+        localThreadData->substreamSize++;
         #endif
     }
     #endif
-    
     barrier_cross(&barrier_global);
     barrier_cross(&barrier_started);
     threadWork(localThreadData);
@@ -671,7 +643,7 @@ void printAccuracyResults(vector<pair<uint32_t,uint32_t>>*sorted_histogram,vecto
         // Calculate Recall, Precision and Average Relative Error
         set<uint32_t> truth;
         set<uint32_t> elems;
-        set<uint32_t> true_positives;
+        std::vector<std::pair<uint32_t,uint32_t>> true_positives;
 
         for (int i = 0; i < sorted_histogram->size(); i++){
             if (sorted_histogram->at(i).second > ceil(sumNumOps*PHI)){
@@ -683,27 +655,28 @@ void printAccuracyResults(vector<pair<uint32_t,uint32_t>>*sorted_histogram,vecto
         }
         for (int i = 0; i < lasttopk->size(); i++){
             if (truth.find(lasttopk->at(i).first) != truth.end() ){
-                true_positives.insert(lasttopk->at(i).first);
+                true_positives.push_back(lasttopk->at(i));
             } 
         }
         float recall;
         float precision;
         float avg_rel_error=0;
-        for (int i = 0; i < lasttopk->size(); i++){
+        int num_matches=0;
+        for (int i = 0; i < true_positives.size(); i++){
             for (int j = 0; j < sorted_histogram->size(); j++){
-                if (lasttopk->at(i).first == sorted_histogram->at(j).first){
-                    float rel_error=abs(1-((float)lasttopk->at(i).second/(float)sorted_histogram->at(j).second)); 
-                    if (sorted_histogram->at(j).second == 0){
-                            rel_error,
-                            sorted_histogram->at(j).first,sorted_histogram->at(j).second,
-                            lasttopk->at(i).first, lasttopk->at(i).second;
+                if (true_positives.at(i).first == sorted_histogram->at(j).first){
+                    int abserr = abs(static_cast<int>(true_positives.at(i).second - sorted_histogram->at(j).second));
+                    float rel_error = abserr / (float) sorted_histogram->at(j).second;
+                    if (sorted_histogram->at(j).second == 0 || true_positives.at(i).second < 0){
+                        goto after_loop;
                     }
                     avg_rel_error+=rel_error;
-                    break;
+                    num_matches++;
                 }
             }
         }
-        avg_rel_error/=lasttopk->size();
+        after_loop:
+        avg_rel_error/=num_matches;
         recall=(float)true_positives.size()/(float)truth.size();
         precision=(float)true_positives.size()/(float)elems.size();
         if (lasttopk->size()==0){
@@ -944,9 +917,8 @@ int main(int argc, char **argv)
 
         filterMatrix = (FilterStruct *) calloc((numberOfThreads)*(numberOfThreads), sizeof(FilterStruct));
         for (int thread = 0; thread< (numberOfThreads)*(numberOfThreads); thread++){
-            filterMatrix[thread].filterSum=0;
             filterMatrix[thread].filterCount=0;
-            filterMatrix[thread].filterFull=0;
+            //filterMatrix[thread].filterFull=false;
             filterMatrix[thread].filter_id = (uint32_t *) calloc(MAX_FILTER_UNIQUES,sizeof(uint32_t));
             filterMatrix[thread].filter_count = (uint32_t *) calloc(MAX_FILTER_UNIQUES,sizeof(uint32_t));
             for (int j=0; j< MAX_FILTER_UNIQUES; j++){
@@ -954,7 +926,7 @@ int main(int argc, char **argv)
             }
         }
         initThreadData(cmArray,r1,MAX_FILTER_SUM,MAX_FILTER_UNIQUES,TOPK_QUERY_RATE,tuples_no,numberOfThreads,th_local_sketch,cm_cw2b);
-        spawnThreads();
+        spawnThreads();        
         barrier_cross(&barrier_global);       
         startTime();
 
@@ -1014,11 +986,12 @@ int main(int argc, char **argv)
         double tot_avg=0.0;
         double average=0.0;
         for(int i=0;i<numberOfThreads;i++){
-            for(int j=0;j<threadData[i].numTopKQueries;j++){
+            int numtopkqueries=min(2000000,threadData[i].numTopKQueries);
+            for(int j=0;j<numtopkqueries;j++){
                 average+= (threadData[i].latencies[j] / clockspeed_hz);
             }
-            average/=threadData[i].numTopKQueries;
-            average*= pow(10,6); // convert to microseconds
+            average*= pow(10,6); // nano convert to microseconds
+            average/=numtopkqueries;
             tot_avg+=average;
             average=0.0;
         }
@@ -1029,8 +1002,8 @@ int main(int argc, char **argv)
 
         #if ACCURACY
         vector<pair<uint32_t,uint32_t>> lasttopk=threadData[0].lasttopk; // Query at the end of the stream
-        printAccuracyResults(&sorted_histogram,&lasttopk,sumGroundTruth);
-        saveAccuracyHistogram(&sorted_histogram,&lasttopk,sumGroundTruth);
+        printAccuracyResults(&sorted_histogram,&lasttopk,streamsize);
+        saveAccuracyHistogram(&sorted_histogram,&lasttopk,streamsize);
         //saveMemoryConsumption(&threadData[0],numberOfThreads);
         #endif
 

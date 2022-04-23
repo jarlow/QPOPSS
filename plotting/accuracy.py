@@ -5,7 +5,7 @@ import seaborn as sns
 import pandas as pd
 import matplotlib
 import itertools
-from math import log10
+from math import log10,ceil,floor
 import numpy as np
 from scipy.special import zeta
 from mpl_toolkits.mplot3d import Axes3D
@@ -19,9 +19,9 @@ plt.rc('legend', fontsize=16)
 matplotlib.rcParams.update({'font.size': 18})
 
 # What experiment(s) should we plot?
-vs_N = True
+vs_N = False
 vs_dfu_dfs = False
-vs_phi = True
+vs_phi = False
 vt_phi = True
 
 
@@ -49,7 +49,7 @@ def crate_accuracy_results_df(algorithm_names,streamlens,df_max_uniques,df_max_s
                         for u in df_max_uniques:
                             for m in df_max_sums:
                                     for z in srs:
-                                        globname="logs/accuracy_deleg_vs_topkapi/var_"+x_axis_name+"*" + n + "*_accuracy_"+str(t)+"_"+ str(z)+"_"+str(format_float(phi))+"_"+str(m)+"_"+str(u)+"_"+str(N)+"_"+experiment_name+ds+"_accuracy.log"
+                                        globname="logs/var_"+x_axis_name+"*" + n + "*_accuracy_"+str(t)+"_"+ str(z)+"_"+str(format_float(phi))+"_"+str(m)+"_"+str(u)+"_"+str(N)+"_"+experiment_name+ds+"_accuracy.log"
                                         print(globname)
                                         file=glob.glob(globname)[0]
                                         print(file)
@@ -64,85 +64,82 @@ def crate_accuracy_results_df(algorithm_names,streamlens,df_max_uniques,df_max_s
                                         counters=np.nan
                                         space=np.nan                  
                                         if space_flag:
-                                            fname_memory = glob.glob("logs/accuracy_deleg_vs_topkapi/var_skew_*" + n + "*_accuracy_*_" + str(z)+"_"+str(format_float(phi))+"_"+str(m)+"_"+str(u)+"_"+str(N)+"_memory.log")[0]
+                                            fname_memory = glob.glob("logs/var_skew_*" + n + "*_accuracy_*_" + str(z)+"_"+str(format_float(phi))+"_"+str(m)+"_"+str(u)+"_"+str(N)+"_memory.log")[0]
                                             space, counters = parse_memory(fname_memory)
-                                        accudf.loc[len(accudf.index)] = [z,fancy_names[names.index(algname)],scinotation,u,m,pavg,ravg,areavg,t,phi_fancy,fancy_dataset_names[datasets.index(ds)],float(space),float(counters)]
+                                        accudf.loc[len(accudf.index)] = [z,fancy_names[names.index(algname)],scinotation,u,m,pavg,ravg,areavg,t,r"${scale}\times 10^{{-{exp}}}$".format(scale=int(phi*(10**(-floor(log10(phi))))),exp=-floor(log10(phi))),fancy_dataset_names[datasets.index(ds)],float(space),float(counters)]
     return accudf
 
 # Vary skew and vary N (stream length)
 if vs_N:
+    matplotlib.rcParams['figure.figsize'] = (6, 6.5)  # Dense info resolution
+    # matplotlib.rcParams['figure.figsize'] = (6, 5) # Sparse info resolution
+    plt.rc('legend', fontsize=26)
+    matplotlib.rcParams.update({'font.size': 26})
     ''' Variables: '''
-    phis=[0.00001]
-    df_max_uniques = [64]
+    phis=[0.0001]
+    df_max_uniques = [16]
     df_max_sums = [1000]
-    streamlens = [1000000, 10000000, 30000000]
+    streamlens = [1000000, 10000000, 100000000]
     skew_rates = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]
     algonames=names
+    palette = [ (0.9333333333333333, 0.5215686274509804, 0.2901960784313726), (0.41568627450980394, 0.8, 0.39215686274509803)]
     ''' ########## '''
     accudf=crate_accuracy_results_df(algonames,streamlens,df_max_uniques,df_max_sums,[24],skew_rates,phis,"varN",[""],"skew",False)
+    accudf.rename(columns={"Streamlength":"N"},inplace=True)
 
     # single has no ARE, so we only plot Delegation Space-Saving ARE:
-    fig, ax = plt.subplots()
-    sns.lineplot(x="Zipf Parameter", y="Average Relative Error", data=accudf[(accudf.Algorithm == "Delegation Space-Saving")],
-                 markersize=8, linewidth=3, markers=True, style="Algorithm", hue="Streamlength", palette="muted", ax=ax)
+    fig, ax1 = plt.subplots()
+    print(accudf)
+    lineplot=sns.lineplot(x="Zipf Parameter", y="Average Relative Error", data=accudf[
+                                         ((accudf["Algorithm"] == "DeSS") |
+                                         (accudf["Algorithm"] == "Topkapi")) &
+                                         ~((accudf["N"] == r"$1\times 10^7$") & (accudf["Zipf Parameter"] == 0.5)) & 
+                                         ~((accudf["N"] == r"$1\times 10^8$") & (accudf["Zipf Parameter"] == 0.5)) & 
+                                         ~((accudf["N"] == r"$1\times 10^6$") & (accudf["Zipf Parameter"] == 0.5))
+                                        ],
+                 markersize=10, linewidth=7, markers=True, style="N", hue="Algorithm", palette=palette, ax=ax1)
 
     def rel_err_bound(a, N): return (df_max_sums[0]*24)/N
     xs = np.arange(0.5, 3.25, 0.25)
-    sns.lineplot(xs, list(map(rel_err_bound, xs, [1000000]*11)), 
-                linestyle="dashed", color="b", palette="muted", ax=ax)
+    ax1.set_yscale("log")
+    ax1.set_ylim(0.0000001)
 
-    sns.lineplot(xs, list(map(rel_err_bound, xs, [10000000]*11)),
-                linestyle="dashed", color="orange", palette="muted", ax=ax)
-    sns.lineplot(xs, list(map(rel_err_bound, xs, [30000000]*11)),
-                 linestyle="dashed", color="g", palette="muted", ax=ax)
-
-    handles, labels = ax.get_legend_handles_labels()
-    entry = Line2D([0], [0], linestyle="dashed",
-                   lw=1.8, ms=9, mew=0.2, color='0')
-    handles.append(entry)
-    labels.append(r"$\frac{mT}{N}$")
-
-    plt.legend(handles, labels)
-
-    plt.xlabel("Skew")
-    plt.ylabel("Average Relative Error")
+    leg=lineplot.legend(fontsize=24,
+        #bbox_to_anchor=(0.73, 0.53 ,0.3,0.5),
+        loc='best',
+        ncol=2,
+        prop={'weight':'normal'},
+        markerscale=2.5,
+        labelspacing=0.05,
+        borderpad=0.1,
+        handletextpad=0.1,
+        framealpha=0.4,
+        handlelength=0.5,
+        handleheight=0.5,
+        borderaxespad=0,
+        columnspacing=0.2)
+    [L.set_linewidth(5.0) for L in leg.legendHandles]
+    l = Line2D([0],[0],color="w")
+    leg.legendHandles.insert(3,l)
+    ax1.legend(handles=leg.legendHandles,
+        fontsize=24,
+        loc='best',
+        ncol=2,
+        prop={'weight':'normal'},
+        markerscale=2.5,
+        labelspacing=0.05,
+        borderpad=0.1,
+        handletextpad=0.1,
+        framealpha=0.4,
+        handlelength=0.5,
+        handleheight=0.5,
+        borderaxespad=0,
+        columnspacing=0.2
+    )
+    ax1.set_xlabel("Zipf Parameter")
+    ax1.set_ylabel("Average Relative Error")
     plt.tight_layout()
-    name = "plots/vs_avg_rel_error_final_varyN.svg"
-    if saveplots_flag:
-        plt.savefig(name, format="svg", dpi=4000)
-    if showplots_flag:
-        plt.show()
-    plt.cla()
-    plt.clf()
-    plt.close()
-    
-    # single has no ARE, so we only plot Delegation Space-Saving ARE:
-    fig, ax = plt.subplots()
-    sns.lineplot(x="Zipf Parameter", y="Average Relative Error", data=accudf[(accudf.Algorithm == "Topkapi") |(accudf.Algorithm == "Topkapi") ],
-                 markersize=8, linewidth=3, markers=True, style="Algorithm", hue="Streamlength", palette="muted", ax=ax)
-
-    def rel_err_bound(a, N): return (df_max_sums[0]*24)/N
-    xs = np.arange(0.5, 3.25, 0.25)
-    sns.lineplot(xs, list(map(rel_err_bound, xs, [1000000]*11)), 
-                linestyle="dashed", color="b", palette="muted", ax=ax)
-
-    sns.lineplot(xs, list(map(rel_err_bound, xs, [10000000]*11)),
-                linestyle="dashed", color="orange", palette="muted", ax=ax)
-    sns.lineplot(xs, list(map(rel_err_bound, xs, [30000000]*11)),
-                 linestyle="dashed", color="g", palette="muted", ax=ax)
-
-    handles, labels = ax.get_legend_handles_labels()
-    entry = Line2D([0], [0], linestyle="dashed",
-                   lw=1.8, ms=9, mew=0.2, color='0')
-    handles.append(entry)
-    labels.append(r"$\frac{mT}{N}$")
-
-    plt.legend(handles, labels)
-
-    plt.xlabel("Skew")
-    plt.ylabel("Average Relative Error")
-    plt.tight_layout()
-    name = "plots/vs_avg_rel_error_final_varyN.svg"
+    name = "plots/vs_avg_rel_error_DeSS_varyN.svg"
     if saveplots_flag:
         plt.savefig(name, format="svg", dpi=4000)
     if showplots_flag:
@@ -151,50 +148,6 @@ if vs_N:
     plt.clf()
     plt.close()
 
-
-    fig, (ax1, ax2) = plt.subplots(1, 2)
-
-    prec = sns.lineplot(x="Zipf Parameter", y="Precision", data=accudf, markersize=8, linewidth=3,
-                        markers=True, style="Algorithm", hue="Streamlength", palette="muted", ax=ax1)
-    ax1.set_xlabel("Skew")
-    ax1.set_ylabel("Precision")
-    ax1.set_ylim([-0.02, 1.01])
-
-    rec = sns.lineplot(x="Zipf Parameter", y="Recall", data=accudf,
-                       markersize=8, linewidth=3, markers=True, style="Algorithm", hue="Streamlength", palette="muted", ax=ax2, legend=False)
-    ax2.set_xlabel("Skew")
-    ax2.set_ylabel("Recall")
-    ax2.set_ylim([-0.02, 1.01])
-    ax1.get_legend().remove()
-    #ax4 = plt.axes([0.75, 0.4, .15, .15])
-    #sns.lineplot(x="Zipf Parameter", y="Recall", data=accudf,
-    #             markersize=8, linewidth=3, markers=True, style="Algorithm", hue="Streamlength", palette="muted", ax=ax4, legend=False)
-    #ax4.set_title('zoom')
-    #ax4.set_xlabel('')
-    #ax4.set_ylabel('')
-    #ax4.set_xlim([0.75, 1.5])
-    #ax4.set_ylim([0.9975, 1.001])
-    #ax2.indicate_inset_zoom(ax4, edgecolor="black")
-
-    # Insert fake entry in legend (to facilitate spacing)
-    handles, labels = ax1.get_legend_handles_labels()
-    entry = matplotlib.patches.Rectangle((0, 0), 1, 1, fill=False, edgecolor='none',
-                                         visible=False)
-    handles.insert(5, entry)
-    labels.insert(5, "")
-
-    fig.legend(handles, labels, loc='upper center', mode="expand", ncol=4)
-    fig.tight_layout()
-    plt.subplots_adjust(top=0.83)
-
-    name = "plots/vs_recall_final_varyN.svg"
-    if saveplots_flag:
-        plt.savefig(name, format="svg", dpi=4000)
-    if showplots_flag:
-        plt.show()
-    plt.cla()
-    plt.clf
-    plt.close()
 
 # Vary skew and var df_s and df_u
 if vs_dfu_dfs:
@@ -289,83 +242,56 @@ if vs_dfu_dfs:
 # Vary skew and vary phi and query rate
 if vs_phi:
     ''' Variables: '''
-    phis=[0.001,0.0001,0.00001]
-    df_max_uniques = [64]
+    phis=[0.001,0.0002,0.0001]
+    df_max_uniques = [16]
     df_max_sums = [1000]
-    streamlens = [30000000]
+    streamlens = [100000000]
     skew_rates = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]
     algonames=names
-    ''' ########## '''
-    accudf=crate_accuracy_results_df(algonames,streamlens,df_max_uniques,df_max_sums,[24],skew_rates,phis,"phi",[""],"skew",True)
 
-    # Plot space difference
-    newdf = pd.DataFrame(columns=["delegspace", "topkapi"])
-    newdf["singlespace"]=accudf[accudf["Algorithm"]=="Topkapi"]["Space"]
-    newdf["delegspace"]=accudf[accudf["Algorithm"]=="Delegation Space-Saving"]["Space"].reset_index().drop("index",axis=1) 
-    newdf[r"$\phi$"]=accudf[accudf["Algorithm"]=="Topkapi"][r"$\phi$"]
-    newdf["Zipf Parameter"]=accudf[accudf["Algorithm"]=="Topkapig"]["Zipf Parameter"]
-    newdf['Percent additional bytes']=newdf['delegspace'] / newdf['singlespace']   #newdf['delegspace']-newdf['singlespace']
-    newdf["delegspace"]=accudf[accudf["Algorithm"]=="Topkapi"]["Space"]/ 100000
+    accudf=crate_accuracy_results_df(algonames,streamlens,df_max_uniques,df_max_sums,[24],skew_rates,phis,"phi",[""],"skew",False)
+    matplotlib.rcParams['figure.figsize'] = (6, 5.5) 
+    plt.rc('legend', fontsize=26)
+    matplotlib.rcParams.update({'font.size': 26})
 
-    mutedblue = sns.color_palette(['#4878d0', '#4878d0', '#4878d0'])
-    mutedorange = sns.color_palette(['#ee854a', '#ee854a', '#ee854a'])
-    mutedgreen = sns.color_palette(['#6acc64'])
-    fig, ax = plt.subplots()
-    ax.set_ylabel("Relative memory increase", color="#4878d0")
-    space = sns.lineplot(x="Zipf Parameter", hue=r"$\phi$", y="Percent additional bytes", data=newdf,
-                         markersize=8, linewidth=3, markers=True, palette=mutedblue, style=r"$\phi$", ax=ax, legend=False)
-    ax2 = plt.twinx()
-    ax2.set_ylabel("Delegation Space-Saving memory (MB)", color="#ee854a")
-    sns.lineplot(x="Zipf Parameter", hue=r"$\phi$", y="delegspace", data=newdf, markersize=8,
-                 linewidth=3, markers=True, palette=mutedorange, style=r"$\phi$", ax=ax2, legend=False)
-    sns.lineplot(x="Zipf Parameter", hue=r"$\phi$", y="delegspace", data=newdf, markersize=8,
-                 linewidth=3, markers=True, palette=mutedorange, style=r"$\phi$", legend=False)
-    ax4 = plt.axes([0.14, 0.4, .16, .16])
-    sns.lineplot(x="Zipf Parameter", hue=r"$\phi$", y="Percent additional bytes", data=newdf,
-                 markersize=8, linewidth=3, markers=True, palette=mutedblue, style=r"$\phi$", ax=ax4, legend=False)
-
-    ax4.set_title('zoom')
-    ax4.set_xlim([0.45, 1.05])
-    ax4.set_ylim([0.9, 2.7])
-
-    ax4.set_xlabel('')
-    ax4.set_ylabel('')
-    ax.indicate_inset_zoom(ax4, edgecolor="black")
-    
-    legend_elements = [
-        Line2D([0], [0], marker='o',  lw=1.7,
-               ms=9, mew=0.2, color='0', label=r'$\frac{1}{1000}$'),
-        Line2D([0], [0], marker='X', linestyle='dashed', lw=1.7,
-               ms=9, mew=0.2, color='0', label=r'$\frac{1}{10000}$'),
-        Line2D([0], [0], marker='s', linestyle='dotted', lw=1.5, ms=9, mew=0.2, color='0', label=r'$\frac{1}{100000}$')]
-    fig.legend(handles=legend_elements, loc="upper center", title=r"$\phi$")
-    
+    fig, ax1 = plt.subplots()
+    lineplot=sns.lineplot(x="Zipf Parameter", y="Precision", data=accudf, markersize=13,
+                 linewidth=7, markers=True, palette="muted", ax=ax1, style=r"$\phi$",hue="Algorithm", legend=True)
+    ax1.set_xlabel("Skew")
+    ax1.set_ylabel("Precision")
+    leg=lineplot.legend(fontsize=24,
+        loc='best',
+        ncol=2,
+        prop={'weight':'normal'},
+        markerscale=2.5,
+        labelspacing=0.05,
+        borderpad=0.1,
+        handletextpad=0.1,
+        framealpha=0.4,
+        handlelength=0.5,
+        handleheight=0.5,
+        borderaxespad=0,
+        columnspacing=0.2)
+    [L.set_linewidth(5.0) for L in leg.legendHandles]
     plt.tight_layout()
-    name = "plots/vs_space_finalVaryQRPhi.svg"
+    name = "plots/vs_precision_finalVaryQRPhi.svg"
     if saveplots_flag:
-        plt.savefig(name, format="svg", dpi=4000)
+        plt.savefig(name, format="svg", dpi=4000, bbox_inches='tight')
     if showplots_flag:
         plt.show()
     plt.cla()
     plt.clf()
     plt.close()
-
-    fig, (ax1, ax2) = plt.subplots(1, 2)
-    sns.lineplot(x="Zipf Parameter", hue=r"$\phi$", y="Average Relative Error", data=accudf, markersize=8,
-                 linewidth=3, markers=True, palette="muted", ax=ax1, style="Algorithm", legend=False)
+    #Recall
+    fig, ax1 = plt.subplots()
+    lineplot=sns.lineplot(x="Zipf Parameter", y="Recall", data=accudf, markersize=13,
+                 linewidth=7, markers=True, palette="muted", ax=ax1, style=r"$\phi$",hue="Algorithm", legend=False)
     ax1.set_xlabel("Skew")
-    ax1.set_ylabel("Average Relative Error")
-
-    prec = sns.lineplot(x="Zipf Parameter", y="Precision", data=accudf, markersize=8,
-                        linewidth=3, markers=True, style="Algorithm", hue=r"$\phi$", palette="muted", ax=ax2)
-    ax2.set_xlabel("Skew")
-    ax2.set_ylabel("Precision")
-    ax2.get_legend().remove()
-    fig.legend(loc='upper center', mode="expand",
-               ncol=4, borderaxespad=0, labelspacing=0)
+    ax1.set_ylabel("Recall")
     plt.tight_layout()
-    plt.subplots_adjust(top=0.83)
-    name = "plots/vs_precision_finalVaryQRPhi.svg"
+
+    plt.tight_layout()
+    name = "plots/vs_recall_finalVaryQRPhi.svg"
     if saveplots_flag:
         plt.savefig(name, format="svg", dpi=4000, bbox_inches='tight')
     if showplots_flag:
@@ -376,32 +302,70 @@ if vs_phi:
 
 # Vary threads
 if vt_phi:
+    matplotlib.rcParams['figure.figsize'] = (6, 6.5)  # Dense info resolution
+    # matplotlib.rcParams['figure.figsize'] = (6, 5) # Sparse info resolution
+    plt.rc('legend', fontsize=26)
+    matplotlib.rcParams.update({'font.size': 26})
     ''' Variables: '''
-    phis=[0.001,0.0001,0.00001]
-    df_max_uniques = [64]
+    phis=[0.001,0.0002,0.0001]
+    df_max_uniques = [16]
     df_max_sums = [1000] 
-    streamlens = [30000000]
+    streamlens = [100000000]
     threads=[4,8,12,16,20,24]
     algnames=['spacesaving deleg',"topkapi"]
     ''' ########## '''
     accudf=crate_accuracy_results_df(algnames,streamlens,df_max_uniques,df_max_sums,threads,[1.25],phis,"phi",datasets,"threads",False)
-
-    fig, (ax1, ax2) = plt.subplots(1, 2)
-    avgrel = sns.lineplot(x="Threads", hue="Dataset", y="Average Relative Error", data=accudf[(accudf.Algorithm == "Delegation Space-Saving")],
-                          markersize=8, linewidth=3, markers=True, style=r"$\phi$", ax=ax1, legend=False)
-    plt.xlabel("Threads")
+    accudf.replace({'CAIDA Flows DirA': 'CAIDA A'}, regex=True,inplace=True)
+    accudf.replace({'CAIDA Flows DirB': 'CAIDA B'}, regex=True,inplace=True)
+    accudf.replace({'Zipf': 'Zipf 1.25'}, regex=True,inplace=True)
+    fig, ax1 = plt.subplots()
+    palette = [ (0.9333333333333333, 0.5215686274509804, 0.2901960784313726), (0.41568627450980394, 0.8, 0.39215686274509803)]
+    lineplot = sns.lineplot(x="Threads", hue="Algorithm", y="Average Relative Error", data=accudf[
+                                                   #(accudf.Algorithm == "DeSS") & 
+                                                    accudf[r"$\phi$"] == r"$1\times 10^{-4}$"
+                                                ],
+                          markersize=13, linewidth=7, markers=True, style="Dataset", ax=ax1, legend=True,palette=palette)
+    leg=lineplot.legend(fontsize=24,
+        #bbox_to_anchor=(0.73, 0.53 ,0.3,0.5),
+        loc='best',
+        ncol=2,
+        prop={'weight':'normal'},
+        markerscale=2.5,
+        labelspacing=0.05,
+        borderpad=0.1,
+        handletextpad=0.1,
+        framealpha=0.4,
+        handlelength=0.5,
+        handleheight=0.5,
+        borderaxespad=0,
+        columnspacing=0.2)
+    [L.set_linewidth(5.0) for L in leg.legendHandles]
+    #lhs=leg.legendHandles
+    l = Line2D([0],[0],color="w")
+    leg.legendHandles.insert(3,l)
+    #fig.legend(handles=leg.legendHandles, title=r"$\phi$")
+    ax1.legend(handles=leg.legendHandles,
+        fontsize=24,
+        loc='best',
+        ncol=2,
+        prop={'weight':'normal'},
+        markerscale=2.5,
+        labelspacing=0.05,
+        borderpad=0.1,
+        handletextpad=0.1,
+        framealpha=0.4,
+        handlelength=0.5,
+        handleheight=0.5,
+        borderaxespad=0,
+        columnspacing=0.2
+    )
+    
+    ax1.set_ylim(0.0000001)
+    ax1.set_xlabel("Threads")
     ax1.set_ylabel("Average Relative Error")
-    prec = sns.lineplot(x="Threads", hue="Dataset", y="Precision", data=accudf[(accudf.Algorithm == "Delegation Space-Saving")],
-                        markersize=8, linewidth=3, markers=True, style=r"$\phi$", ax=ax2)
-    plt.xlabel("Threads")
-    plt.ylabel("Precision")
-    ax2.get_legend().remove()
-    fig.legend(loc='upper center', mode="expand",
-               ncol=4, borderaxespad=0, labelspacing=0)
-    plt.xticks([4, 8, 12, 16, 20, 24])
+    ax1.set_yscale("log")
     plt.tight_layout()
-    plt.subplots_adjust(top=0.83)
-    name = "plots/vt_precision_and_avgre_final.svg"
+    name = "plots/vt_avgre_final.svg"
     if saveplots_flag:
         plt.savefig(name, format="svg", dpi=4000)
     if showplots_flag:

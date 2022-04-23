@@ -3,10 +3,10 @@ from math import ceil
 import numpy as np
 
 ''' Constants '''
-RUNTIME=4 #For how long did each repetition execute?
+RUNTIME=8 #For how long did each repetition execute?
 
 names = ["spacesaving single", "spacesaving deleg","topkapi"] #["spacesaving single", "spacesaving deleg","topkapi"]
-fancy_names = ["Single Space-Saving","Delegation Space-Saving","Topkapi"] #["Single Space-Saving","Delegation Space-Saving","Topkapi"]
+fancy_names = ["SeqSS","DeSS","Topkapi"] #["Single Space-Saving","Delegation Space-Saving","Topkapi"]
 
 datasets = ["", "flows_dirA", "flows_dirB"]
 fancy_dataset_names = ["Zipf", "CAIDA Flows DirA", "CAIDA Flows DirB"]

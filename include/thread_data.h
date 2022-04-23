@@ -10,27 +10,26 @@
 #include <unordered_set>
 #include "lossycount.h"
 #include "LossyCountMinSketch.h"
+#include "concurrentqueue.h"
+
 
 //#define FILTER_SIZE 64
 #define BUCKETS 512 //256//64
 #define BUCKETS_SQ 262144 //65536//4096
 
-typedef struct Filter_T{
+typedef struct alignas(64) Filter_T{
     uint32_t *filter_id;
     uint32_t *filter_count;
     struct alignas(64){
         volatile int filterCount=0;
     };
+        Filter_T * volatile next;
     struct alignas(64){
-        volatile int filterSum=0;
-    };
-    Filter_T * volatile next;
-    struct alignas(64){
-        volatile int filterFull=0;
+        volatile bool filterFull=false;
     };
 }FilterStruct;
 
-void push(FilterStruct * filter, FilterStruct * volatile * headPointer){
+void push(FilterStruct* filter, FilterStruct* volatile*  headPointer){
     FilterStruct * volatile oldHead = *headPointer;
     filter->next = oldHead;
     while(! __sync_bool_compare_and_swap (headPointer, oldHead, filter)){
@@ -39,9 +38,9 @@ void push(FilterStruct * filter, FilterStruct * volatile * headPointer){
     }
 }
 
-FilterStruct * pop(FilterStruct * volatile * headPointer){
-    FilterStruct * volatile oldHead = *headPointer;
-    FilterStruct * volatile newHead = oldHead->next;
+FilterStruct* pop(FilterStruct* volatile* headPointer){
+    FilterStruct* volatile oldHead = *headPointer;
+    FilterStruct* volatile newHead = oldHead->next;
 
     while(! __sync_bool_compare_and_swap (headPointer, oldHead, newHead)){
         oldHead = *headPointer;
@@ -53,6 +52,7 @@ FilterStruct * pop(FilterStruct * volatile * headPointer){
 
 typedef struct
 {
+    moodycamel::ConcurrentQueue<FilterStruct*>* concurrentQueue;
     LossySketch* th_local_sketch;
     Xi** randoms;
     Frequent_CM_Sketch* topkapi_instance;
@@ -93,7 +93,6 @@ typedef struct
     int numQueries;
     int numOps;
     int numTopKQueries;
-    uint8_t cachecounter=0; // cachecounter for each thread
     struct alignas(64){
         uint64_t substreamSize=0; // counter for each thread
         char pad3[56];

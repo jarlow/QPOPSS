@@ -13,45 +13,6 @@ fi
 
 #Topk for each dataset
 declare -A topk
-#topk[flows_dirA,0.5,0.00001]=10435
-#topk[flows_dirA,0.5,0.0001]=1555
-#topk[flows_dirA,0.5,0.001]=44
-#topk[flows_dirB,0.5,0.00001]=15085
-#topk[flows_dirB,0.5,0.0001]=724
-#topk[flows_dirB,0.5,0.001]=6
-#topk["",0.5,0.00001]=54
-#topk["",0.5,0.0001]=0
-#topk["",0.5,0.001]=0
-#topk["",0.75,0.00001]=2884
-#topk["",0.75,0.0001]=134
-#topk["",0.75,0.001]=6
-#topk["",1,0.00001]=6279
-#topk["",1,0.0001]=629
-#topk["",1,0.001]=62
-#topk["",1.25,0.00001]=2952
-#topk["",1.25,0.0001]=467
-#topk["",1.25,0.001]=74
-#topk["",1.5,0.00001]=1135
-#topk["",1.5,0.0001]=244
-#topk["",1.5,0.001]=52
-#topk["",1.75,0.00001]=489
-#topk["",1.75,0.0001]=131
-#topk["",1.75,0.001]=35
-#topk["",2,0.00001]=246
-#topk["",2,0.0001]=77
-#topk["",2,0.001]=24
-#topk["",2.25,0.00001]=140
-#topk["",2.25,0.0001]=50
-#topk["",2.25,0.001]=18
-#topk["",2.5,0.00001]=88
-#topk["",2.5,0.0001]=35
-#topk["",2.5,0.001]=14
-#topk["",2.75,0.00001]=60
-#topk["",2.75,0.0001]=26
-#topk["",2.75,0.001]=11
-#topk["",3,0.00001]=43
-#topk["",3,0.0001]=20
-#topk["",3,0.001]=9
 regex="SKEW:[[:space:]]*([0-9]\.{0,1}[1-9]{0,2})[[:space:]]*NUM TOPK:[[:space:]]*([0-9]+)[[:space:]]*PHI:[[:space:]]*(0\.[0-9]+)[[:space:]]*FILEPATH:[[:space:]]*.*\/datasets\/(.*)\.txt"
 
 ### Synthetic stream parameters
@@ -61,11 +22,12 @@ num_seconds=10
 N=${stream_size}
 rows=4
 new_columns=100
+queries=0
 
 ### Which experiments to run?
 vsdfsdfu=false
-vs=true
-vt=false
+vs=false
+vt=true
 
 ### Sources of data
 declare -A datasets
@@ -162,8 +124,9 @@ if [ "$vsdfsdfu" = true ] ; then
 fi
 MAX_FILTER_UNIQUES="16"
 MAX_FILTER_SUMS="1000"
-phis="0.001 0.0005 0.0002 0.0001"
-topkqueriesS="0 10 100 1000"
+phis="0.001 0.0002 0.0001"
+#topkqueriesS="0 100 1000"
+topkqueriesS="200"
 versions="cm_spacesaving_deleg_maxheap cm_topkapi cm_spacesaving_single_maxheap" #"cm_spacesaving_deleg_maxheap cm_spacesaving_single_maxheap cm_topkapi"
 ## Vary skew with qr and phi
 echo "------ Vary skew, query rate and phi------"
@@ -246,9 +209,10 @@ fi
 MAX_FILTER_UNIQUES="16"
 MAX_FILTER_SUMS="1000"
 
-phis="0.001 0.0005 0.0002 0.0001"
-topkqueriesS="0 10 100 1000"
-versions="cm_spacesaving_deleg_maxheap cm_topkapi cm_spacesaving_single_maxheap" #"cm_spacesaving_deleg_maxheap cm_spacesaving_single_maxheap cm_topkapi"
+phis="0.001 0.0002 0.0001"
+#topkqueriesS="0 100 1000"
+topkqueriesS="100"
+versions="cm_spacesaving_deleg" #"cm_spacesaving_deleg_maxheap cm_spacesaving_single_maxheap cm_topkapi"
 threads="4 8 12 16 20 24"
 ## Vary threads with skew 1.25
 echo "------ Vary Threads, query rate and phi------"

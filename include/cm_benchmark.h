@@ -72,14 +72,17 @@
 #define ITHACA 0
 #endif
 
-#ifndef LATENCY
-#define LATENCY 0
-#endif
-
 #ifndef GENERATE_MODE
 #define GENERATE_MODE 0
 #endif
 
+//#ifndef ACCURACY
+//#define PREINSERT 1
+//#define LATENCY 1
+//#endif
+
+#define PREINSERT 1
+#define LATENCY 1
 
 int QUERRY_RATE;
 int TOPK_QUERY_RATE;

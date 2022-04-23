@@ -146,7 +146,7 @@ static inline void insertFilterNoWriteBack(threadDataStruct * localThreadData, u
 }
 
 static inline int tryInsertInDelegatingFilter(FilterStruct * filter, unsigned int key){
-    if (filter->filterFull) return 0;
+    if (filter->filterCount == 16) return 0;
 
     int qRes = queryFilterIndex16(key,filter->filter_id);
     if (qRes == -1){
@@ -156,14 +156,13 @@ static inline int tryInsertInDelegatingFilter(FilterStruct * filter, unsigned in
             filter->filter_count[filter->filterCount] = 1;
             filter->filterCount++;
         }
-        if (filter->filterCount == MAX_FILTER_UNIQUES){
+        /*if (filter->filterCount == MAX_FILTER_UNIQUES){
             filter->filterFull = 1;
-        }
+        }*/
     }
     else{
         filter->filter_count[qRes]++;
     }
-    filter->filterSum++;
     return 1;
 }
 
@@ -202,7 +201,6 @@ static inline void InsertInDelegatingFilterWithListAndMaxSum(FilterStruct * filt
     else{
         filter->filter_count[qRes]++;
     }
-    filter->filterSum++;
 }
 
 

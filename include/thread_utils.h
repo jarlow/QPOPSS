@@ -38,7 +38,8 @@ void initThreadData(Count_Min_Sketch ** sketchArray, Relation * relation,int MAX
         threadData[i].theData = relation;
         threadData[i].elementsProcessed = 0;
         threadData[i].buckets = (int*) calloc(BUCKETS/numberOfThreads + 1,sizeof(int)); // Cardinality estimation
-        threadData[i].latencies = (int*) calloc(200000,sizeof(int));
+        threadData[i].latencies = (int*) calloc(2000000,sizeof(int));
+        threadData[i].concurrentQueue = new moodycamel::ConcurrentQueue<FilterStruct*>();
 
         /*Initialize Space-Saving instance*/
         threadData[i].ss = LCL_Init(1/(float)COUNTING_PARAM);

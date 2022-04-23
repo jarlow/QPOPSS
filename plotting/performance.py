@@ -5,14 +5,15 @@ import numpy as np
 import pandas as pd
 import glob
 from matplotlib.lines import Line2D
-from math import log10
+import matplotlib as mpl
+from math import log10,ceil,floor
 from plotters import average_and_std,parse_throughput,format_float,RUNTIME,names,fancy_names,datasets,fancy_dataset_names,showplots_flag,saveplots_flag
 
 #Matplotlib aesthetic parameters:
-matplotlib.rcParams['figure.figsize'] = (11, 6)  # Dense info resolution
+matplotlib.rcParams['figure.figsize'] = (10, 7)  # Dense info resolution
 # matplotlib.rcParams['figure.figsize'] = (6, 5) # Sparse info resolution
-plt.rc('legend', fontsize=16)
-matplotlib.rcParams.update({'font.size': 18})
+plt.rc('legend', fontsize=18)
+matplotlib.rcParams.update({'font.size': 34})
 
 # What parameter should be varied?
 vs_dfu_dfs = False
@@ -21,7 +22,6 @@ vt_phi_qr = True
 
 # What is the metric?
 throughput = True
-speedupthroughput = True
 
 def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_uniques,df_max_sums,threads,skew_rates,phis,experiment_name,dataset_names,x_axis_name,speedup_flag,maxheap_flag):
     columns = ["Zipf Parameter", "Algorithm","Throughput","Streamlength",
@@ -35,7 +35,7 @@ def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_u
             srs=[0.5]
         for algname in algorithm_names:
             if algname.find("single") != -1:
-                thrs = [1]
+                thrs = [1]*len(threads)
             else:
                 thrs = threads
             n = algname.split()
@@ -63,14 +63,21 @@ def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_u
                                                 single_throughput = perfdf[
                                                         (perfdf["Zipf Parameter"] == z) & 
                                                         (perfdf["Query Rate"] == float(0 if qr==0 else float(qr)/(10000))) & 
-                                                        (perfdf["Algorithm"] == "Single Space-Saving") & 
+                                                        (perfdf["Algorithm"] == "SeqSS") & 
                                                         (perfdf["Dataset"] == fancy_dataset_names[datasets.index(ds)]) &
                                                         (perfdf["phi"] == float(phi))]
                                                 single_throughput=single_throughput.Throughput.values[0]
                                                 speedup = float(float(tpavg) / float(single_throughput))
+                                        if algname.find("single") != -1:
+                                            for _thread in threads:
+                                                    queryRate=float(0 if qr==0 else float(qr)/(10000))
+                                                    perfdf.loc[len(perfdf.index)] = [z, fancy_names[names.index(algname)], float(tpavg), float(tpavg)*1000000*RUNTIME, 
+                                                            float(tpavg)*RUNTIME*1000000*float(qr)*1/10000,df_max_sum,df_max_unique,float(phi),r"${scale}\times 10^{{-{exp}}}$".format(scale=int(phi*(10**(-floor(log10(phi))))),exp=-floor(log10(phi))),   # r"$\frac{{1}}{{{num}}}$".format(num=int(10**-log10(phi))),
+                                                            queryRate,speedup,fancy_dataset_names[datasets.index(ds)],int(_thread)]
+
                                         queryRate=float(0 if qr==0 else float(qr)/(10000))
                                         perfdf.loc[len(perfdf.index)] = [z, fancy_names[names.index(algname)], float(tpavg), float(tpavg)*1000000*RUNTIME, 
-                                                                        float(tpavg)*RUNTIME*1000000*float(qr)*1/10000,df_max_sum,df_max_unique,float(phi),r"$\frac{{1}}{{{num}}}$".format(num=int(10**-log10(phi))),
+                                                                        float(tpavg)*RUNTIME*1000000*float(qr)*1/10000,df_max_sum,df_max_unique,float(phi),r"${scale}\times 10^{{-{exp}}}$".format(scale=int(phi*(10**(-floor(log10(phi))))),exp=-floor(log10(phi))),#r"$\frac{{1}}{{{num}}}$".format(num=int(10**-log10(phi))),
                                                                         queryRate,speedup,fancy_dataset_names[datasets.index(ds)],int(t)]
     return perfdf
 
@@ -89,10 +96,10 @@ if vs_dfu_dfs:
     perfdf=crate_performance_results_df(["spacesaving deleg"],streamlens,query_rates,df_max_uniques,df_max_sums,[24],skew_rates,phis,"dfsdfu",[""],"skew",False,True)
     if throughput:
         fig, ax = plt.subplots()
-        sns.lineplot(x="Zipf Parameter", y="Throughput", data=perfdf, markersize=8, linewidth=3, markers=True,
+        sns.lineplot(x="Zipf Parameter", y="Throughput", data=perfdf, markersize=10, linewidth=7, markers=True,
                      style=perfdf["df_u"], hue=perfdf["df_s"], palette="muted", legend="full", ax=ax)
         ax2 = plt.axes([0.19, 0.40, .2, .2])
-        sns.lineplot(x="Zipf Parameter", y="Throughput", data=perfdf, markersize=8, linewidth=3, markers=True,
+        sns.lineplot(x="Zipf Parameter", y="Throughput", data=perfdf, markersize=10, linewidth=7, markers=True,
                      style=perfdf["df_u"], hue=perfdf["df_s"], palette="muted", legend=False, ax=ax2)
         ax2.set_title('zoom')
         ax2.set_xlim([0.45, 1.05])
@@ -106,7 +113,7 @@ if vs_dfu_dfs:
         ax.set_xlabel("Skew")
         ax.set_ylabel("Throughput (Million Inserts/sec)")
         fig.legend(ncol=2, bbox_to_anchor=(0.9, 0.43), loc="center right")
-        name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_performance_throughput_final_dfu_dfs.svg"
+        name = "/home/victor/git/Delegation-Space-Saving/plots/vs_performance_throughput_final_dfu_dfs.svg"
         if saveplots_flag:
             plt.savefig(name, format="svg", dpi=4000)
         if showplots_flag:
@@ -115,260 +122,97 @@ if vs_dfu_dfs:
         plt.cla()
         plt.close()
 
+def generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,query_rate,ax1_legend_function,ax2_legend_function):
+    fig, ax1 = plt.subplots()
+    lineplot = sns.lineplot(x=xaxis_string, y="Throughput", data=perfdf[(perfdf["Query Rate"] == query_rate) & (perfdf["Dataset"] == dataset) & (perfdf["Threads"] != 1)], markersize=10,
+                    linewidth=7, markers=True, style=r"$\phi$", hue="Algorithm", palette="muted", legend=True if query_rate == 0.02 else False, ax=ax1)
+    ax1.set_xlabel(xaxis_string)
+    ax1.set_ylabel("Throughput (Million Inserts/sec)")
+    ax1.set_ylim(1, ylim_throughput_max)
+    ax1.set_xticks(xticklabels)
+    ax1.set_xticklabels(xticks)
+    ax1_legend_function(lineplot)
+    ax2 = ax1.twinx()
+    alpha=0.35
+    lineplot2 = sns.lineplot(x=xaxis_string, y="Speedup", data=perfdf[(perfdf["Query Rate"] == query_rate) & (perfdf["Dataset"] == dataset) & (perfdf["Threads"] != 1)], markersize=10,
+                    linewidth=7, markers=True,style=r"$\phi$", hue="Query Rate", palette=['black'], ax=ax2, legend=False, alpha=alpha)
+
+    ax2.set_xticks(xticks)
+    ax2.set_xticklabels(xticklabels)
+    ax2.set_ylabel("Speedup (DeSS/SeqSS)")
+    ax2.set_ylim(0,ylim_speedup_max)
+    ax2_legend_function(lineplot2,ax2)
+    plt.tight_layout()
+    name = "/home/victor/git/Delegation-Space-Saving/plots/"+dataset+"_"+xaxis_string+"_performance_throughput_finalphiqr_"+str(query_rate)+"_quer.svg"
+    plt.savefig(name, format="svg", dpi=4000)
+    if saveplots_flag:
+        plt.savefig(name, format="svg", dpi=4000)
+    if showplots_flag:
+        plt.show()
+    plt.clf()
+    plt.cla()
+    plt.close()
+
+def speedup_legend(lineplot2,ax2):
+    custom_line = [Line2D([0], [0], color=ax2.get_lines()[0].get_c(), lw=5, alpha=0.5)]
+    leg2=lineplot2.legend(custom_line,
+                            ["Speedup"],
+                            fontsize=26, 
+                            loc='upper left')
+
+def algo_legend(lineplot):
+    leg=lineplot.legend(fontsize=24,
+        #bbox_to_anchor=(0.73, 0.53 ,0.3,0.5),
+        loc='upper left',
+        ncol=2,
+        prop={'weight':'normal'},
+        markerscale=2.5,
+        labelspacing=0.05,
+        borderpad=0.1,
+        handletextpad=0.1,
+        framealpha=0.4,
+        handlelength=0.5,
+        handleheight=0.5,
+        borderaxespad=0,
+        columnspacing=0.2)
+    [L.set_linewidth(5.0) for L in leg.legendHandles]
+
+
+def throughput_plots(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string):
+    #Throughput with 0 queries:
+
+    generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,0,lambda x1: (),speedup_legend)
+    generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,0.01,lambda x1: (),lambda x1,x2 : ())
+    generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,0.02,algo_legend,lambda x1,x2 : ())
 
 # Vary skew, phi and query rate
 if vs_phi_qr:
+    matplotlib.rcParams['figure.figsize'] = (9, 7)  # Dense info resolution
+    plt.rc('legend', fontsize=26)
+    matplotlib.rcParams.update({'font.size': 26})
     ''' Variables: '''
-    phis = [0.001, 0.0005, 0.0002, 0.0001]
+    phis = [0.001, 0.0002, 0.0001]
     df_max_uniques = [16]
     df_max_sums = [1000]
     streamlens=[10000000]
-    query_rates = [0, 10, 100,1000]
+    query_rates = [0,100,200]
     skew_rates = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]
     ''' ########## '''
     perfdf=crate_performance_results_df(names,streamlens,query_rates,df_max_uniques,df_max_sums,[24],skew_rates,phis,"phiqr",datasets,"skew",True,True)
     if throughput:
-
-        #Throughput with 0 queries:
-        fig, ax = plt.subplots()
-        sns.lineplot(x="Zipf Parameter", y="Throughput", data=perfdf[(perfdf["Query Rate"] == 0) & (perfdf["Dataset"] == "Zipf")], markersize=8,
-                     linewidth=3, markers=True, style="Algorithm", hue=r"$\phi$", palette="muted", ax=ax)
-        plt.xlabel("Skew")
-        plt.ylabel("Throughput (Million Inserts/sec)")
-        plt.tight_layout()
-        ax.axes.get_legend().remove()
-        fig.legend(loc='upper center',
-                   mode="expand", ncol=4, borderaxespad=0, labelspacing=0)
-        name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_performance_throughput_finalphiqr_no_quer.svg"
-        ax.set_ylim([-1, 700])
-        plt.subplots_adjust(top=0.83)
-        if saveplots_flag:
-            plt.savefig(name, format="svg", dpi=4000)
-        if showplots_flag:
-            plt.show()
-        plt.clf()
-        plt.cla()
-        plt.close()
-
-        # Throughput with 0.001% queries:
-        fig, ax = plt.subplots()
-        sns.lineplot(x="Zipf Parameter", y="Throughput", data=perfdf[(perfdf["Query Rate"] == 0.001) & (perfdf["Dataset"] == "Zipf")], markersize=8,
-                     linewidth=3, markers=True, style="Algorithm", hue=r"$\phi$", palette="muted", ax=ax)
-        plt.xlabel("Skew")
-        plt.ylabel("Throughput (Million Inserts/sec)")
-        plt.tight_layout()
-        ax.axes.get_legend().remove()
-        ax.set_ylim([-1, 700])
-        fig.legend(loc='upper center',
-                   mode="expand", ncol=4, borderaxespad=0, labelspacing=0)
-        name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_performance_throughput_finalphiqr_no_quer.svg"
-        plt.subplots_adjust(top=0.83)
-        name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_performance_throughput_finalphiqr_0.1_quer.svg"
-        if saveplots_flag:
-            plt.savefig(name, format="svg", dpi=4000)
-        if showplots_flag:
-            plt.show()
-        plt.clf()
-        plt.cla()
-        plt.close()
-
-        #Throughput with 0.01 queries:
-        fig, ax = plt.subplots()
-        sns.lineplot(x="Zipf Parameter", y="Throughput", data=perfdf[(perfdf["Query Rate"] == 0.01) & (perfdf["Dataset"] == "Zipf")], markersize=8,
-                     linewidth=3, markers=True, style="Algorithm", hue=r"$\phi$", palette="muted", ax=ax)
-        plt.xlabel("Skew")
-        plt.ylabel("Throughput (Million Inserts/sec)")
-        plt.tight_layout()
-        ax.axes.get_legend().remove()
-        fig.legend(loc='upper center',
-                   mode="expand", ncol=4, borderaxespad=0, labelspacing=0)
-        name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_performance_throughput_finalphiqr_no_quer.svg"
-        ax.set_ylim([-1, 700])
-        plt.subplots_adjust(top=0.83)
-        if saveplots_flag:
-            plt.savefig(name, format="svg", dpi=4000)
-        if showplots_flag:
-            plt.show()
-        plt.clf()
-        plt.cla()
-        plt.close()
-
-        # Throughput with 0.1% queries:
-        fig, ax = plt.subplots()
-        sns.lineplot(x="Zipf Parameter", y="Throughput", data=perfdf[(perfdf["Query Rate"] == 0.1) & (perfdf["Dataset"] == "Zipf")], markersize=8,
-                     linewidth=3, markers=True, style="Algorithm", hue=r"$\phi$", palette="muted", ax=ax)
-        plt.xlabel("Skew")
-        plt.ylabel("Throughput (Million Inserts/sec)")
-        plt.tight_layout()
-        ax.axes.get_legend().remove()
-        ax.set_ylim([-1, 700])
-        fig.legend(loc='upper center',
-                   mode="expand", ncol=4, borderaxespad=0, labelspacing=0)
-        name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_performance_throughput_finalphiqr_no_quer.svg"
-        plt.subplots_adjust(top=0.83)
-        name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_performance_throughput_finalphiqr_0.1_quer.svg"
-        if saveplots_flag:
-            plt.savefig(name, format="svg", dpi=4000)
-        if showplots_flag:
-            plt.show()
-        plt.clf()
-        plt.cla()
-        plt.close()
-
-    # Performance over different skew rates for 24 threads speedup
-    if speedupthroughput:
-        fig, axs = plt.subplots(3, 1, sharex=True, sharey=True)
-        mutedblue = sns.color_palette(['#4878d0'])
-        mutedorange = sns.color_palette(['#ee854a'])
-        mutedgreen = sns.color_palette(['#6acc64'])
-        ls1 = sns.lineplot(x="Zipf Parameter", y="Speedup", data=perfdf[(perfdf[r"$\phi$"] == r'$\frac{1}{1000}$') &
-                                                         (perfdf["Algorithm"] == "Delegation Space-Saving") &
-                                                         (perfdf["Dataset"] == "Zipf")], markersize=8, linewidth=3,
-                           markers=True, hue=r"$\phi$", style="Query Rate", legend=False, palette=mutedblue, ax=axs[0])
-        ls2 = sns.lineplot(x="Zipf Parameter", y="Speedup", data=perfdf[(perfdf[r"$\phi$"] == r'$\frac{1}{10000}$') &
-                                                         (perfdf["Algorithm"] == "Delegation Space-Saving") &
-                                                         (perfdf["Dataset"] == "Zipf")], markersize=8, linewidth=3,
-                           markers=True, hue=r"$\phi$", style="Query Rate", legend=False, palette=mutedorange, ax=axs[1])
-        ls3 = sns.lineplot(x="Zipf Parameter", y="Speedup", data=perfdf[(perfdf[r"$\phi$"] == r'$\frac{1}{100000}$') &
-                                                         (perfdf["Algorithm"] == "Delegation Space-Saving") &
-                                                         (perfdf["Dataset"] == "Zipf")], markersize=8, linewidth=3,
-                           markers=True, hue=r"$\phi$", style="Query Rate", legend=False, palette=mutedgreen, ax=axs[2])
-        plt.xlabel("Skew")
-        plt.ylabel("Speedup")
-        plt.yticks([4, 8, 12, 16, 20,24])
-        plt.ylim([0, 24])
-        
-        legend_elements = [Line2D([0], [0], color='#4878d0', lw=3, label=r'$\phi=\frac{1}{1000}$'),
-                           Line2D([0], [0], color='#ee854a', lw=3,
-                                  label=r'$\phi=\frac{1}{10000}$'),
-                           Line2D([0], [0], color='#6acc64', lw=3,
-                                  label=r'$\phi=\frac{1}{100000}$'),
-                           matplotlib.patches.Rectangle((0, 0), 1, 1, fill=False, edgecolor='none',
-                                                        visible=False),
-                           Line2D([0], [0], marker='o', lw=1.8, ms=9,
-                                  mew=0.2, color='0', label='% queries=0'),
-                           Line2D([0], [0], marker='X', linestyle='dashed', lw=1.7,
-                                  ms=9, mew=0.2, color='0', label='% queries=0.001'),
-                           Line2D([0], [0], marker='s', linestyle='dotted', lw=1.7,
-                                  ms=9, mew=0.2, color='0', label='% queries=0.01'),
-                           Line2D([0], [0], marker='P', linestyle='dashdot', lw=1.5, ms=9, mew=0.2, color='0', label='% queries=0.1')]
-        
-        fig.legend(handles=legend_elements, loc='upper center',
-                   mode="expand", ncol=4, borderaxespad=0, labelspacing=0)
-        name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vs_performance_speedup_finalphiqr.svg"
-        axs[0].grid(axis="y")
-        axs[1].grid(axis="y")
-        axs[2].grid(axis="y")
-        plt.tight_layout()
-        plt.subplots_adjust(top=0.83)
-        if saveplots_flag:
-            plt.savefig(name, format="svg", dpi=4000)
-        if showplots_flag:
-            plt.show()
-        plt.clf()
-        plt.cla()
-        plt.close()
-
-        ###Real Data Speedup
-        catplot = sns.catplot(y="Speedup", x="Query Rate", data=perfdf[((perfdf["Dataset"] == "CAIDA Flows DirA") |
-                                                                       (perfdf["Dataset"] == "CAIDA Flows DirB")) &
-                                                                       (perfdf["Algorithm"] == "Delegation Space-Saving")], 
-                                                            hue=r"$\phi$", col="Dataset", marker="$\_$",
-                              s=30, jitter=False, height=8, aspect=3.8/8, legend_out=True, legend=True, sharey=True)
-        catplot.despine(right=False, top=False)
-        plt.xlabel("Query Rate")
-        catplot.fig.get_axes()[0].set_yticks(list(range(4, 15)))
-        catplot.fig.get_axes()[1].set_yticks(list(range(4, 15)))
-        plt.ylabel("Speedup")
-        name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vp_performance_speedup_finalreal.svg"
-        if saveplots_flag:
-            plt.savefig(name, format="svg", dpi=4000)
-        if showplots_flag:
-            plt.show()
-        plt.clf()
-        plt.cla()
-        plt.close()
-    
+        throughput_plots("Zipf",1000,24,[0.5,1,1.5,2,2.5,3],np.arange(0.5,3.5,0.5),"Zipf Parameter")
 
 # Vary threads, phi and query rate
 if vt_phi_qr:
     ''' Variables: '''
-    phis = [0.001, 0.0005, 0.0002, 0.0001]
+    phis = [0.001, 0.0002, 0.0001]
     df_max_uniques = [16]
     df_max_sums = [1000]
     streamlens=[10000000]
-    query_rates = [0, 10, 100, 1000]
+    query_rates = [0, 100, 200]
     threads=[4,8,12,16,20,24]
     ''' ########## '''
     perfdf=crate_performance_results_df(names,streamlens,query_rates,df_max_uniques,df_max_sums,threads,[1.25],phis,"phiqr",datasets,"threads",True,True)
     if throughput:
-        sns.lineplot(x="Threads", y="Throughput",  data=perfdf[(perfdf["Dataset"] == "CAIDA Flows DirA") &
-                                                                       (perfdf["Algorithm"] == "Delegation Space-Saving")], markersize=8, linewidth=3, markers=True,
-                     style="Query Rate", hue=r"$\phi$", palette="muted", legend="full")
-        plt.xlabel("Threads")
-        plt.ylabel("Throughput (Million Inserts/sec)")
-        plt.tight_layout()
-        name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vt_performance_throughput_finalphiqr.svg"
-        if saveplots_flag:
-            plt.savefig(name, format="svg", dpi=4000)
-        if showplots_flag:
-            plt.show()
-        plt.clf()
-        plt.cla()
-        plt.close()
-
-    # Performance over different skew rates for 24 threads speedup
-    if speedupthroughput:
-        for ds in datasets:
-            print("Dataset: ",ds)
-            fig, axs = plt.subplots(3, 1, sharex=True, sharey=True)
-            mutedblue = sns.color_palette(['#4878d0'])
-            mutedorange = sns.color_palette(['#ee854a'])
-            mutedgreen = sns.color_palette(['#6acc64'])
-            ls1 = sns.lineplot(x="Threads", y="Speedup", data=perfdf[(perfdf[r"$\phi$"] == r'$\frac{1}{1000}$') &
-                                                            (perfdf["Dataset"] == fancy_dataset_names[datasets.index(ds)]) &
-                                                            (perfdf["Algorithm"] == "Delegation Space-Saving")], markersize=8, linewidth=3,
-                            markers=True, hue=r"$\phi$", style="Query Rate", legend=False, palette=mutedblue, ax=axs[0])
-            ls2 = sns.lineplot(x="Threads", y="Speedup", data=perfdf[(perfdf[r"$\phi$"] == r'$\frac{1}{10000}$') &
-                                                            (perfdf["Dataset"] == fancy_dataset_names[datasets.index(ds)]) &
-                                                            (perfdf["Algorithm"] == "Delegation Space-Saving")], markersize=8, linewidth=3,
-                            markers=True, hue=r"$\phi$", style="Query Rate", legend=False, palette=mutedorange, ax=axs[1])
-            ls3 = sns.lineplot(x="Threads", y="Speedup", data=perfdf[(perfdf[r"$\phi$"] == r'$\frac{1}{100000}$') &
-                                                            (perfdf["Dataset"] == fancy_dataset_names[datasets.index(ds)]) &
-                                                            (perfdf["Algorithm"] == "Delegation Space-Saving")], markersize=8, linewidth=3,
-                            markers=True, hue=r"$\phi$", style="Query Rate", legend=False, palette=mutedgreen, ax=axs[2])
-            plt.xlabel("Threads")
-            plt.ylabel("Speedup")
-            plt.xlim([3, 25])
-            plt.xticks([4, 8, 12, 16, 20, 24])
-            plt.yticks([4, 8, 12, 16, 20])
-            plt.ylim([0, 20])
-            legend_elements = [Line2D([0], [0], color='#4878d0', lw=3, label=r'$\phi=\frac{1}{1000}$'),
-                            Line2D([0], [0], color='#ee854a', lw=3,
-                                    label=r'$\phi=\frac{1}{10000}$'),
-                            Line2D([0], [0], color='#6acc64', lw=3,
-                                    label=r'$\phi=\frac{1}{100000}$'),
-                            matplotlib.patches.Rectangle((0, 0), 1, 1, fill=False, edgecolor='none',
-                                                            visible=False),
-                            Line2D([0], [0], marker='o', lw=1.8, ms=9,
-                                    mew=0.2, color='0', label='% queries=0'),
-                            Line2D([0], [0], marker='X', linestyle='dashed', lw=1.7,
-                                    ms=9, mew=0.2, color='0', label='% queries=0.001'),
-                            Line2D([0], [0], marker='s', linestyle='dotted', lw=1.7,
-                                    ms=9, mew=0.2, color='0', label='% queries=0.01'),
-                            Line2D([0], [0], marker='P', linestyle='dashdot', lw=1.5, ms=9, mew=0.2, color='0', label='% queries=0.1')]
-            fig.legend(handles=legend_elements, loc='upper center',
-                    mode="expand", ncol=4, borderaxespad=0, labelspacing=0)
-            name = "/home/victor/git/DelegationSketchTopK-singlequery/plots/vt_performance_speedup_finalphiqr"+ds+".svg"
-            axs[0].grid(axis="y")
-            axs[1].grid(axis="y")
-            axs[2].grid(axis="y")
-            plt.tight_layout()
-            plt.subplots_adjust(top=0.83)
-            if saveplots_flag:
-                plt.savefig(name, format="svg", dpi=4000)
-            if showplots_flag:
-                plt.show()
-            plt.clf()
-            plt.cla()
-            plt.close()
+        throughput_plots("CAIDA Flows DirA",250,15,threads,np.arange(4, 28, 4),"Threads")
+        throughput_plots("CAIDA Flows DirB",200,15,threads,np.arange(4, 28, 4),"Threads")
