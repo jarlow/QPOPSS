@@ -1,16 +1,5 @@
 The Delegation Space-Saving algorithm
 ----------------------------------
-#Master thesis project in Computer Science aimed at developing and evaluating a multithreaded algorithm for finding frequent elements in a data stream.
-Fulltext pdf of the associated report is available [here](https://gupea.ub.gu.se/handle/2077/69761). [Slides](https://1drv.ms/p/s!AoGCrA99762dlJ0tFWP2XnC7Y9bFkQ?e=R4UNUR).
-#Heavily
-Influenced by:
-
- - "Delegation sketch: a parallel design with support for fast and accurate concurrent operations", Charalampos Stylianopoulos, Ivan Walulya, Magnus Almgren, Olad Landsiedel, Marina Papatriantafilou, EuroSys'20, Heraklion, Greece, [pdf](https://dl.acm.org/doi/abs/10.1145/3342195.3387542), [github](https://github.com/mpastyl/DelegationSketch)
-
-and 
-
- - "Efficient Computation of Frequent and Top-k Elements in Data Streams", Ahdmed Metwally, Divyakant Agrawal and Amr El Abbadi,ICDT'05,Edinburgh, UK, [pdf](https://link.springer.com/chapter/10.1007%2F978-3-540-30570-5_27), [full-length pdf](https://cs.ucsb.edu/sites/default/files/documents/2005-23.pdf)
-
 Instructions
 ----------------------------------
 To build:
