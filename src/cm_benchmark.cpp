@@ -32,6 +32,7 @@
 #define HASHB 6722461
 #define TRUE 1
 #define FALSE 0
+#define MAX_HISTOGRAM_SIZE 100000000
 
 using namespace std;
 
@@ -437,12 +438,12 @@ void topkapi_query(threadDataStruct * localThreadData,int K,float phi,vector<pai
 }
 
 // Performs a frequent elements query 
-void FEquery(threadDataStruct * localThreadData,float phi,vector<pair<uint32_t,uint32_t>>* v ){
+void FEquery(threadDataStruct * localThreadData,float phi,vector<pair<uint32_t,uint32_t>> &v ){
     //float cardinality_estimate=0.0;
     LCL_type* local_spacesaving;
-    v->resize(0);
+    v.resize(0);
     uint64_t streamsize=0;
-    
+
     // If single threaded just extract frequent elements from the local Space-Saving instance
     #if SINGLE
     streamsize = localThreadData->substreamSize;
@@ -482,7 +483,7 @@ void FEquery(threadDataStruct * localThreadData,float phi,vector<pair<uint32_t,u
     #endif
 
     // Sort output
-    std::sort(v->data(), v->data()+v->size(),sortbysecdesc);
+    std::sort(v.data(), v.data()+v.size(),sortbysecdesc);
     //cardinality_estimate=BUCKETS_SQ*0.709/cardinality_estimate;
     //return cardinality_estimate;
 }
@@ -512,7 +513,7 @@ void threadWork(threadDataStruct *localThreadData)
                 #endif
 
                 #if SPACESAVING
-                FEquery(localThreadData,PHI,&(localThreadData->lasttopk));
+                FEquery(localThreadData,PHI,localThreadData->lasttopk);
                 #elif TOPKAPI
                 //topkapi_query(localThreadData,K,PHI,&(localThreadData->lasttopk));
                 topkapi_query_merge(localThreadData,buckets_no,K);
@@ -591,7 +592,7 @@ void * threadEntryPoint(void * threadArgs){
     localThreadData->seeds = seed_rand();    
     // Insert the data once, here we let each thread process the whole dataset,
     // and let the threads cherry-pick the elements that they own.
-    #if PREINSERT
+    #if PREINSERT && !ACCURACY
     int start,end;
     #if TOPKAPI
     start=localThreadData->startIndex;
@@ -600,6 +601,7 @@ void * threadEntryPoint(void * threadArgs){
     start=0;
     end=tuples_no;
     #endif
+
 
     for (int i = start; i < end; i++){
         uint32_t key = (*localThreadData->theData->tuples)[i];
@@ -829,9 +831,9 @@ int main(int argc, char **argv)
     int use_real_data = 0;
     char input_file_name[1024];
     //Histogram of data distribution:
-    vector<uint32_t> * histogram = new vector<uint32_t>(100000000,0);
-    vector<uint32_t> * input_data = new vector<uint32_t>();
-    input_data->reserve(100000000);
+    vector<uint32_t> *histogram = new vector<uint32_t>(MAX_HISTOGRAM_SIZE,0);
+    vector<uint32_t> *input_data = new vector<uint32_t>();
+    input_data->reserve(MAX_HISTOGRAM_SIZE);
 
     if (argc==19){
         strcpy(input_file_name,argv[18]);
@@ -918,7 +920,7 @@ int main(int argc, char **argv)
         filterMatrix = (FilterStruct *) calloc((numberOfThreads)*(numberOfThreads), sizeof(FilterStruct));
         for (int thread = 0; thread< (numberOfThreads)*(numberOfThreads); thread++){
             filterMatrix[thread].filterCount=0;
-            //filterMatrix[thread].filterFull=false;
+            filterMatrix[thread].filterFull=false;
             filterMatrix[thread].filter_id = (uint32_t *) calloc(MAX_FILTER_UNIQUES,sizeof(uint32_t));
             filterMatrix[thread].filter_count = (uint32_t *) calloc(MAX_FILTER_UNIQUES,sizeof(uint32_t));
             for (int j=0; j< MAX_FILTER_UNIQUES; j++){
@@ -952,7 +954,7 @@ int main(int argc, char **argv)
         #if ACCURACY 
         // Perform a query at the end of the stream
         #if SPACESAVING
-        FEquery(&(threadData[0]),PHI,&(threadData[0].lasttopk));
+        FEquery(&(threadData[0]),PHI,threadData[0].lasttopk);
         #elif TOPKAPI
         topkapi_query_merge(&threadData[0],buckets_no,num_topk);
         //topkapi_query(&(threadData[0]),K,PHI,&(threadData[0].lasttopk));
