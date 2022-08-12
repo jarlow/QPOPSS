@@ -76,11 +76,6 @@
 #define GENERATE_MODE 0
 #endif
 
-//#ifndef ACCURACY
-//#define PREINSERT 1
-//#define LATENCY 1
-//#endif
-
 #define PREINSERT 1
 #define LATENCY 1
 
