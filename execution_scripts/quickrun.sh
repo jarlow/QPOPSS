@@ -72,7 +72,7 @@ phi="0.0001"
 MAX_FILTER_SUM="1000"
 K=1000
 MAX_FILTER_UNIQUES="16"
-versions="cm_spacesaving_deleg" #cm_topkapi_accuracy" #"cm_spacesaving_deleg cm_spacesaving_deleg_maxheap cm_topkapi" #cm_topkapi_accuracy #cm_spacesaving_deleg_accuracy cm_spacesaving_deleg_maxheap_accuracy
+versions="cm_spacesaving_deleg_min_max_heap" #cm_topkapi_accuracy" #"cm_spacesaving_deleg cm_spacesaving_deleg_maxheap cm_topkapi" #cm_topkapi_accuracy #cm_spacesaving_deleg_accuracy cm_spacesaving_deleg_maxheap_accuracy
 for version in $versions; do
     eps=$(echo "$phi*$EPSILONratio" | bc -l)
     eps=0$eps
