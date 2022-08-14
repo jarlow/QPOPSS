@@ -8,6 +8,7 @@
 #include "getticks.h"
 #include "lossycount.h"
 #include "LossyCountMinSketch.h"
+#include "prng.h"
 
 #include <numeric> 
 #include <sys/time.h>
@@ -691,14 +692,14 @@ void printAccuracyResults(vector<pair<uint32_t,uint32_t>>*sorted_histogram,vecto
         if (elems.size() == 0){
             precision=1;
         }
-        printf("\nElements: %d, Truth:%d, True Positives:%d",elems.size(),truth.size(),true_positives.size());
+        printf("\nElements: %ld, Truth:%ld, True Positives:%ld",elems.size(),truth.size(),true_positives.size());
         printf("\nPrecision:%f, Recall:%f, AverageRelativeError:%f\n", precision,recall,avg_rel_error );
         printf("\n");
 }
 void saveAccuracyHistogram(vector<pair<uint32_t,uint32_t>>*sorted_histogram,vector<pair<uint32_t,uint32_t>>*lasttopk,uint64_t sum){
         FILE *fp = fopen("logs/topk_results.txt", "w");
         //N, K,Phi in first row.
-        fprintf(fp,"%llu %d %f\n",sum,K,PHI);
+        fprintf(fp,"%lu %d %f\n",sum,K,PHI);
         for (int i = 0; i < sorted_histogram->size(); i++){
             pair<uint32_t,uint32_t> ltopk;
             if (i < lasttopk->size()){
@@ -722,7 +723,7 @@ void read_ints(const char *file_name, vector<uint32_t>* input_data , vector<uint
     
     while (!feof(file))
     {
-        fscanf(file, "%d", &i);
+        (void) !fscanf(file, "%d", &i);
         input_data->push_back(i);
         histogram->at(i)+=1;
     }
@@ -955,6 +956,7 @@ int main(int argc, char **argv)
         // Perform a query at the end of the stream
         #if SPACESAVING
         FEquery(&(threadData[0]),PHI,threadData[0].lasttopk);
+        //LCL_ShowHeap(threadData[0].ss);
         #elif TOPKAPI
         topkapi_query_merge(&threadData[0],buckets_no,num_topk);
         //topkapi_query(&(threadData[0]),K,PHI,&(threadData[0].lasttopk));
