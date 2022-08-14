@@ -9,14 +9,11 @@
 #define MINMAXHEAP 0
 #endif
 
-#include "prng.h"
-
-// lclazy.h -- header file for Lazy Lossy Counting
-// see Manku & Motwani, VLDB 2002 for details
-// implementation by Graham Cormode, 2002,2003, 2005
+#include <cstdint>
+#include <vector>
 
 /////////////////////////////////////////////////////////
-using LCLweight_t = int;
+using LCLweight_t = uint32_t;
 using LCLitem_t = uint32_t;
 ////////////////////////////////////////////////////////
 
@@ -48,12 +45,13 @@ typedef struct LCL_type
 
 LCL_type * LCL_Init(float fPhi);
 void LCL_Destroy(LCL_type *);
-void LCL_Update(LCL_type *, LCLitem_t, int);
+void LCL_Update(LCL_type *, LCLitem_t, LCLweight_t);
 int LCL_Size(LCL_type *);
-int LCL_PointEst(LCL_type *, LCLitem_t);
-int LCL_PointErr(LCL_type *, LCLitem_t);
+LCLweight_t LCL_PointEst(LCL_type *, LCLitem_t);
+LCLweight_t LCL_PointErr(LCL_type *, LCLitem_t);
 void LCL_Output(LCL_type *,int,std::vector<std::pair<uint32_t,uint32_t>>&);
 void LCL_ShowHeap(LCL_type *);
 LCL_type * LCL_Copy(LCL_type *);
+void LCL_CheckHash(LCL_type * lcl, uint32_t item, int hash);
 
 #endif
