@@ -1,10 +1,7 @@
-#include <stdlib.h>
+
 #include <stdio.h>
 #include "lossycount.h"
 #include "prng.h"
-#include <algorithm>
-#include <functional>
-#include <cstdint>
 #include "plf_stack.h"
 
 /********************************************************************
@@ -33,12 +30,12 @@ constexpr LCLweight_t LCL_NULLITEM = 0x7FFFFFFF;
 
 // *********** Helper functions ***********
 static inline uint32_t integerLog2(const uint32_t x) {
-  uint32_t y;
-  asm ( "\tbsr %1, %0\n"
-      : "=r"(y)
-      : "r" (x)
-  );
-  return y;
+	uint32_t y;
+	asm ( "\tbsr %1, %0\n"
+		: "=r"(y)
+		: "r" (x)
+	);
+	return y;
 }
 
 static inline bool isMinLevel(const int ptr, const LCL_type *lcl) {
@@ -63,32 +60,34 @@ static inline int minMaxGrandchild(const LCL_type* lcl, const int ptr, const Com
 	int c1 = gc +
 			(comp(lcl->counters[gc].count,lcl->counters[gc+1].count) ? 0 : 1);
 	int c2 = gc +
-		(comp(lcl->counters[gc+2].count,lcl->counters[gc+3].count) ? 2 : 3);
-	return (lcl->counters[c1].count < lcl->counters[c2].count) ? c1 : c2;
+			(comp(lcl->counters[gc+2].count,lcl->counters[gc+3].count) ? 2 : 3);
+	return (comp(lcl->counters[c1].count,lcl->counters[c2].count)) ? c1 : c2;
 }
 
 static inline bool hasGrandchildren(const int index, const int size) {
-	return (index << 2) <= size + 1;
+	return size >= ((index << 2) + 3);
 }
 
 static inline bool hasChildren(const int index, const int size) {
-	return (index << 1) <= size + 1;
+	return size >= ((index << 1) + 1);
 }
 
-static inline bool hasGrandparent(const int index, const int size) {
+static inline bool hasGrandparent(const int index) {
 	return (index >> 2) > 0;
 }
 
 static inline void swapAndMaintainHashtable(LCLCounter *one, LCLCounter *other, const LCL_type *lcl){
 	LCLCounter tmp;
-	tmp = *one;
+
+	tmp=*one;
 	*one=*other;
 	*other=tmp;
+	// else, swap the parent and child in the heap
 
-	if (one->hash==other->hash){
+	if (one->hash==other->hash)
 		// test if the hash value of a parent is the same as the 
 		// hash value of its child
-
+	{ 
 		// swap the prev and next pointers back. 
 		// if the two items are in the same linked list
 		// this avoids some nasty buggy behaviour
@@ -97,18 +96,23 @@ static inline void swapAndMaintainHashtable(LCLCounter *one, LCLCounter *other, 
 		other->next=one->next;
 		one->next=tmp.next;
 	} 
-	else { 
-		// ensure that the pointers in the linked list are correct
+	
+	else { // ensure that the pointers in the linked list are correct
 		// check: hashtable has correct pointer (if prev ==0)
 		if (!one->prev) { // if there is no previous pointer
 			if (one->item!=LCL_NULLITEM)
 				lcl->hashtable[one->hash]=one; // put in pointer from hashtable
-		} 
-		else {one->prev->next=one;}
-		if (one->next) {one->next->prev=one;} // place in linked list
-		if (!other->prev){lcl->hashtable[other->hash]=other;} // also fix up the child
-		else{other->prev->next=other;}
-		if (other->next) {other->next->prev=other;}
+		} else
+			one->prev->next=one;
+		if (one->next) 
+			one->next->prev=one; // place in linked list
+
+		if (!other->prev) // also fix up the child
+			lcl->hashtable[other->hash]=other; 
+		else
+			other->prev->next=other; 
+		if (other->next)
+			other->next->prev=other;
 	}
 }
 
@@ -143,10 +147,12 @@ LCL_type * LCL_Init(const float fPhi)
 		result->counters[i].item=LCL_NULLITEM;
 		// initialize items and counters to zero
 	}
-	result->modtable = (bool*) calloc(integerLog2(result->size),sizeof(bool));
-	for (i=0; i<integerLog2(result->size); i+=2)
-		result->modtable[i] = true;
-	// initialize the modulo lookup table (1 on even levels, 0 on odd levels))	
+
+	result->modtable = (bool*) calloc(integerLog2(result->size)+1,sizeof(bool));
+	for (i=0; i<(integerLog2(result->size)+1); i+=2)
+		result->modtable[i] = 1;
+	// initialize the modulo lookup table (1 on even levels, 0 on odd levels))
+
 	result->root=&result->counters[1]; // put in a pointer to the top of the heap
 	return result;
 }
@@ -155,6 +161,7 @@ void LCL_Destroy(LCL_type * lcl)
 {
 	free(lcl->hashtable);
 	free(lcl->counters);
+	free(lcl->modtable);
 	free(lcl);
 }
 
@@ -189,7 +196,7 @@ void MinHeapBubbleDown(const LCL_type * lcl, int ptr)
 
 	while(1)
 	{
-		if ((ptr<<1) + 1 > lcl->size) break;
+		if (!hasChildren(ptr,lcl->size)) break;
 		// if the current node has no children
 
 		mc = minMaxChild(lcl, ptr, std::less<volatile LCLweight_t>());
@@ -206,16 +213,15 @@ void MinHeapBubbleDown(const LCL_type * lcl, int ptr)
 }
 
 template <typename Comparator>
-LCLCounter* MinMaxHeapPushDown(const LCL_type * lcl, int ptr, const Comparator comp){
-	LCLCounter tmp;
+LCLCounter* MinMaxHeapPushDown(const LCL_type *lcl, const int ptr, const Comparator comp){
 	LCLCounter *cpt,*mchild,*mgchild;
 	cpt = mchild = mgchild = nullptr;
 	int mc = -1, mgc = -1;
 	cpt=&(lcl->counters[ptr]);
 
-	if ((ptr<<1) + 1 > lcl->size) return cpt; // if no children, return
+	if (!hasChildren(ptr,lcl->size)) return cpt; // if no children, return
 
-	if (((ptr<<2) + 3) <= lcl->size) { // if grandchild exists
+	if (hasGrandchildren(ptr,lcl->size)) { // if grandchild exists
 		mgc = minMaxGrandchild(lcl,ptr,comp);
 		mgchild=&(lcl->counters[mgc]);
 	}
@@ -225,57 +231,59 @@ LCLCounter* MinMaxHeapPushDown(const LCL_type * lcl, int ptr, const Comparator c
 
 	if (mgchild && comp(mgchild->count,mchild->count)){ // (min/max)-grandchild exists, and is smaller/larger than smallest child
 		if (comp(mgchild->count,cpt->count)){ // if (min/max)-grandchild is smaller/larger than current pointer
-			swapAndMaintainHashtable(mgchild,cpt,lcl); // swap pointers
-			if (!comp(mgchild->count,lcl->counters[mgc>>1].count)){ // if (min/max)-grandchild is larger/smaller than its parent
-				swapAndMaintainHashtable(mgchild,&(lcl->counters[mgc>>1]),lcl); // swap with parent
+			swapAndMaintainHashtable(cpt,mgchild,lcl); // swap pointers
+			if (!comp(mgchild->count,lcl->counters[mgc >> 1].count)){ // if (min/max)-grandchild is larger/smaller than its parent
+				swapAndMaintainHashtable(&(lcl->counters[mgc >> 1]),mgchild,lcl); // swap with parent
 			}
 			return MinMaxHeapPushDown(lcl,mgc,comp); // push down grandchild
 		}
 	}
 	else if (comp(mchild->count,cpt->count)){ // if (min/max)-child is smaller/larger than current pointer
-			swapAndMaintainHashtable(mchild,cpt,lcl); // swap pointers
+		swapAndMaintainHashtable(cpt,mchild,lcl); // swap pointers
 	}
 	return cpt;
 }
 
 LCLCounter* MinMaxHeapPushDown(const LCL_type * lcl, const int ptr){
 	return isMinLevel(ptr,lcl) ?
-		MinMaxHeapPushDown(lcl,ptr,std::less<volatile int>()) : 
-		MinMaxHeapPushDown(lcl,ptr,std::greater<volatile int>());
+		MinMaxHeapPushDown(lcl,ptr,std::less<volatile LCLweight_t>()) : 
+		MinMaxHeapPushDown(lcl,ptr,std::greater<volatile LCLweight_t>());
 }
 
 template <typename Comparator>
 void MinMaxHeapPushUp(const LCL_type * lcl, const int ptr, const Comparator comp){
 	const int gp = ptr>>2;
-	if (gp > 0 && comp(lcl->counters[ptr].count,lcl->counters[gp].count)){ // grandparent exists
+	if (hasGrandparent(ptr) && comp(lcl->counters[ptr].count,lcl->counters[gp].count)){ // grandparent exists
 		swapAndMaintainHashtable(&lcl->counters[ptr],&lcl->counters[gp],lcl);
 		MinMaxHeapPushUp(lcl,gp,comp);
 	}
 }
 
 void MinMaxHeapPushUp(const LCL_type * lcl, const int ptr){
+	if (ptr == 1){ return; } // if root return
+	
 	LCLCounter tmp;
 	LCLCounter *cpt = nullptr, *parent = nullptr;
 	cpt = &lcl->counters[ptr];
-	const int par = ptr>>1;
+	const int par = ptr >> 1;
 	parent = &lcl->counters[par];
-	if (ptr==1){ return; } // if root return
+
 	if (isMinLevel(ptr,lcl)){
 		if (cpt->count > parent->count){ // min level and curr > parent, swap 
 			swapAndMaintainHashtable(cpt,parent,lcl);
-			MinMaxHeapPushUp(lcl,par,std::greater<volatile int>());
+			MinMaxHeapPushUp(lcl,par,std::greater<volatile LCLweight_t>());
 		}
 		else{
-			MinMaxHeapPushUp(lcl,ptr,std::less<volatile int>());
+			MinMaxHeapPushUp(lcl,ptr,std::less<volatile LCLweight_t>());
 		}
 	}
 	else{
 		if (cpt->count < parent->count){ // max level and curr < parent, swap 
 			swapAndMaintainHashtable(cpt,parent,lcl);
-			MinMaxHeapPushUp(lcl,par,std::less<volatile int>());
+			MinMaxHeapPushUp(lcl,par,std::less<volatile LCLweight_t>());
 		}
 		else{
-			MinMaxHeapPushUp(lcl,ptr,std::greater<volatile int>());
+			MinMaxHeapPushUp(lcl,ptr,std::greater<volatile LCLweight_t>());
 		}
 	}
 }
@@ -310,10 +318,6 @@ void LCL_Update(LCL_type * lcl, const LCLitem_t item, const LCLweight_t value)
 
 	lcl->counters->item=0; // mark data structure as 'dirty'
 	const int hashval=(int) hash31(lcl->hasha, lcl->hashb,item) % lcl->hashsize;
-	// Might need below if hashval is 0
-	/*if (hashval == 0){
-		hashval=1;
-	}*/
 	hashptr=lcl->hashtable[hashval];
 	
 	// compute the hash value of the item, and begin to look for it in 
@@ -404,60 +408,46 @@ void LCL_Output(LCL_type *lcl, const int thresh, std::vector<std::pair<uint32_t,
 {
 	const int size=lcl->size;
 	#if MINMAXHEAP
-	int curr_node;
+	uint16_t curr_node;
 	plf::stack<uint16_t> stack;
+	std::set <uint16_t> visitedgpars;
 	// 2 and 3 are the max nodes with largest count
-	if (lcl->counters[2].count >= thresh){
-		stack.push(2);
-	}
-	if (lcl->counters[3].count >= thresh){
-		stack.push(3);
-	}
+	stack.push(2);
+	stack.push(3);
 	while(!stack.empty()){
-		curr_node=stack.top();
+		curr_node = stack.top();
 		stack.pop();
-		if (isMaxLevel(curr_node,lcl)){
-			if (hasGrandchildren(curr_node,size)){ 
-				int gc = curr_node << 2;
-				if (lcl->counters[gc].count >= thresh){
-					stack.push(gc);
+		if (lcl->counters[curr_node].count >= thresh){
+			if (isMaxLevel(curr_node,lcl)){
+				uint16_t gc = curr_node << 2;
+				stack.push(gc);
+				stack.push(gc+1);
+				stack.push(gc+2);
+				stack.push(gc+3);
 				}
-				if (lcl->counters[gc+1].count >= thresh){
-					stack.push(gc+1);
-				}
-				if (lcl->counters[gc+2].count >= thresh){
-					stack.push(gc+2);
-				}
-				if (lcl->counters[gc+3].count >= thresh){
-					stack.push(gc+3);
-				}
-			}
 			else{
 				if (hasChildren(curr_node,size)){
-					int ch = curr_node << 1;
-					if (lcl->counters[ch].count >= thresh){
-						stack.push(ch);
-					}
-					if (lcl->counters[ch+1].count >= thresh){
-						stack.push(ch+1);
-					}
+					uint16_t ch = curr_node << 1;
+					stack.push(ch);
+					stack.push(ch+1);
 				}
 			}
 		}
 		else{ // Node is on a min level
-			if (hasGrandparent(curr_node, size)){
-				int gpar = curr_node >> 2;
-				if (lcl->counters[gpar].count >= thresh){
+			if (hasGrandparent(curr_node)){
+				uint16_t gpar = curr_node >> 2;
+				if (visitedgpars.find(gpar) == visitedgpars.end()){
 					stack.push(gpar);
+					visitedgpars.insert(gpar);
 				}
 			}
 		}
-		v.push_back(std::make_pair((uint32_t)lcl->counters[curr_node].item,lcl->counters[curr_node].count));
+		v.push_back(std::make_pair(lcl->counters[curr_node].item,lcl->counters[curr_node].count));
 	}
 	#else
-	for (int i=1;i<=size;++i){
+	for (int i=1;i <=size;++i){
 		if (lcl->counters[i].count >= thresh){
-			v.push_back(std::make_pair((uint32_t)lcl->counters[i].item,lcl->counters[i].count));
+			v.push_back(std::make_pair(lcl->counters[i].item,lcl->counters[i].count));
 		}
 	}
 	#endif
@@ -472,7 +462,7 @@ void LCL_ShowHeap(LCL_type * lcl)
 	j=1;
 	for (i=1; i<=lcl->size; i++)
 	{
-		printf("%d ",(int) lcl->counters[i].count);
+		printf("%u ",(int) lcl->counters[i].count);
 		if (i==j) 
 		{ 
 			level++;
@@ -484,11 +474,11 @@ void LCL_ShowHeap(LCL_type * lcl)
 	printf("\nMin-heap array:\n");
 	printf("Elem:  ");
 	for (i=1; i<=lcl->size; i++){
-		printf("%d ",lcl->counters[i].item);
+		printf("%u ",lcl->counters[i].item);
 	}
 	printf("\nCount: ");
 	for (i=1; i<=lcl->size; i++){
-		printf("%d ",lcl->counters[i].count);
+		printf("%u ",lcl->counters[i].count);
 	}
 	printf("\n");
 }
