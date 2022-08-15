@@ -1,3 +1,4 @@
+#include <string>
 // Probabilistic Random Number Generators
 // Collected from various sources by Graham Cormode, 2000-2003
 // 
@@ -6,25 +7,6 @@
 
 #define _USE_MATH_DEFINES
 
-#include <stdio.h>
-#include <assert.h>
-#include <iostream>
-#include <iomanip>
-#include <iterator>
-#include <string>
-#include <sstream>
-#include <fstream>
-#include <queue>
-#include <vector>
-#include <map>
-#include <set>
-#include <stack>
-#include <list>
-#include <algorithm>
-#include <cmath>
-#include <locale>
-#include <climits>
-#include <limits>
 
 #ifdef _MSC_VER
 typedef unsigned __int8 byte;

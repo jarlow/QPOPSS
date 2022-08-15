@@ -56,10 +56,6 @@
 #define SINGLE 0
 #endif
 
-#ifndef DEBUG
-#define DEBUG 0
-#endif
-
 #ifndef ACCURACY
 #define ACCURACY 0
 #endif

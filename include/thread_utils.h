@@ -30,19 +30,18 @@ void initThreadData(Count_Min_Sketch ** sketchArray, Relation * relation,int MAX
         threadData[i].theSketch = sketchArray[i];
         threadData[i].sketchArray  = sketchArray;
 
-
-        threadData[i].th_local_sketch = th_local_sketch;
-        threadData[i].randoms=cm_cw2b;
-
         threadData[i].theGlobalSketch = globalSketch;
         threadData[i].theData = relation;
         threadData[i].elementsProcessed = 0;
         threadData[i].buckets = (int*) calloc(BUCKETS/numberOfThreads + 1,sizeof(int)); // Cardinality estimation
         threadData[i].latencies = (int*) calloc(2000000,sizeof(int));
-        threadData[i].concurrentQueue = new moodycamel::ConcurrentQueue<FilterStruct*>();
 
-        /*Initialize Space-Saving instance*/
+        // #### Initialize Space-Saving instance ####
         threadData[i].ss = LCL_Init(1/(float)COUNTING_PARAM);
+
+        // #### Topkapi local sketch ####
+        threadData[i].th_local_sketch = th_local_sketch;
+        threadData[i].randoms=cm_cw2b;
     }
 
 }
