@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <set>
 #include "lossycount.h"
 #include "prng.h"
 #include "plf_stack.h"
@@ -85,29 +86,27 @@ static inline void swapAndMaintainHashtable(LCLCounter *one, LCLCounter *other, 
 	// else, swap the parent and child in the heap
 
 	if (one->hash==other->hash)
-		// test if the hash value of a parent is the same as the 
-		// hash value of its child
+		// If both nodes are in the same linked list, make sure to 
+		// completely swap the next and prev pointers of each node. 
 	{ 
-		// swap the prev and next pointers back. 
-		// if the two items are in the same linked list
-		// this avoids some nasty buggy behaviour
 		other->prev=one->prev;
 		one->prev=tmp.prev;
 		other->next=one->next;
 		one->next=tmp.next;
 	} 
 	
-	else { // ensure that the pointers in the linked list are correct
-		// check: hashtable has correct pointer (if prev ==0)
+	else { // If the swapped nodes are in different linked lists,
+		// make sure that each node is slotted into the linked list correctly
 		if (!one->prev) { // if there is no previous pointer
 			if (one->item!=LCL_NULLITEM)
 				lcl->hashtable[one->hash]=one; // put in pointer from hashtable
 		} else
-			one->prev->next=one;
+			one->prev->next=one; // Connect this one to the previous one
 		if (one->next) 
-			one->next->prev=one; // place in linked list
+			one->next->prev=one; // Connect this one to the next one
 
-		if (!other->prev) // also fix up the child
+		//Do same as above for other node:
+		if (!other->prev)
 			lcl->hashtable[other->hash]=other; 
 		else
 			other->prev->next=other; 
@@ -412,33 +411,43 @@ void LCL_Output(LCL_type *lcl, const int thresh, std::vector<std::pair<uint32_t,
 	plf::stack<uint16_t> stack;
 	std::set <uint16_t> visitedgpars;
 	// 2 and 3 are the max nodes with largest count
-	stack.push(2);
-	stack.push(3);
+	if (lcl->counters[2].count>thresh)
+		stack.push(2);
+	if (lcl->counters[3].count>thresh)
+		stack.push(3);
 	while(!stack.empty()){
 		curr_node = stack.top();
 		stack.pop();
-		if (lcl->counters[curr_node].count >= thresh){
-			if (isMaxLevel(curr_node,lcl)){
+		if (isMaxLevel(curr_node,lcl)){
+			if (hasGrandchildren(curr_node,size)){
 				uint16_t gc = curr_node << 2;
-				stack.push(gc);
-				stack.push(gc+1);
-				stack.push(gc+2);
-				stack.push(gc+3);
-				}
+				if (lcl->counters[gc].count >= thresh)
+					stack.push(gc);
+				if (lcl->counters[gc+1].count >= thresh)
+					stack.push(gc+1);
+				if (lcl->counters[gc+2].count >= thresh)
+					stack.push(gc+2);
+				if (lcl->counters[gc+3].count >= thresh)
+					stack.push(gc+3);
+			}
 			else{
 				if (hasChildren(curr_node,size)){
 					uint16_t ch = curr_node << 1;
-					stack.push(ch);
-					stack.push(ch+1);
+					if (lcl->counters[ch].count >= thresh)
+						stack.push(ch);
+					if (lcl->counters[ch+1].count >= thresh)
+						stack.push(ch+1);
 				}
 			}
-		}
+		}	
 		else{ // Node is on a min level
 			if (hasGrandparent(curr_node)){
 				uint16_t gpar = curr_node >> 2;
 				if (visitedgpars.find(gpar) == visitedgpars.end()){
-					stack.push(gpar);
-					visitedgpars.insert(gpar);
+					if (lcl->counters[gpar].count >= thresh){
+						stack.push(gpar);
+						visitedgpars.insert(gpar);
+					}
 				}
 			}
 		}
