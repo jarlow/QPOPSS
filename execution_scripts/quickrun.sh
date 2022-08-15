@@ -1,12 +1,20 @@
 #!/bin/bash
 compile=$1
+type=$2
+if [ $type = "" ]; then
+    type="throughput"
+fi
+
 if [ "$compile" = "1" ]; then 
     cd src || exit
     make clean
-    make freq_elems_performance
-    #make freq_elems_accuracy
+    make -j$(nproc) "freq_elems_${2}"
     cd ../
 fi
+
+#echo colors
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
 num_counters_deleg (){
     eps=$1
@@ -48,7 +56,7 @@ num_counters_topkapi(){
     res=${res%.*}
     echo $res
 }
-num_thr='8'
+num_thr='16'
 
 rows=4
 
@@ -72,7 +80,7 @@ phi="0.0001"
 MAX_FILTER_SUM="1000"
 K=1000
 MAX_FILTER_UNIQUES="16"
-versions="cm_spacesaving_deleg_min_max_heap" #cm_topkapi_accuracy" #"cm_spacesaving_deleg cm_spacesaving_deleg_maxheap cm_topkapi" #cm_topkapi_accuracy #cm_spacesaving_deleg_accuracy cm_spacesaving_deleg_maxheap_accuracy
+versions="cm_spacesaving_deleg_min_max_heap_${2} cm_spacesaving_deleg_min_heap_${2}" #cm_topkapi_accuracy" #"cm_spacesaving_deleg cm_spacesaving_deleg_maxheap cm_topkapi" #cm_topkapi_accuracy #cm_spacesaving_deleg_accuracy cm_spacesaving_deleg_maxheap_accuracy
 for version in $versions; do
     eps=$(echo "$phi*$EPSILONratio" | bc -l)
     eps=0$eps
@@ -84,11 +92,9 @@ for version in $versions; do
     calgo_param=$(num_counters_deleg "$eps" $skew $((num_thr)))
     echo "buckets per thread: ${new_columns}"
     echo "counters per thread: ${calgo_param}"
-    echo "${version}"
+    echo -e "${RED} ${version} ${NC}"
     echo "$universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topk_rates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filename"
     ./bin/$version.out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topk_rates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filename
-    #output=$(./bin/$version.out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topk_rates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filename)
-    #echo "$output"
 done
 
 #eps=$(echo "$phi*$EPSILONratio" | bc -l)
