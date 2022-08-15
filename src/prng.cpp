@@ -1,8 +1,8 @@
 #include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include "prng.h"
 #include "rand48.h"
+
+#include <assert.h>
 
 #define PI 3.141592653589793
 
