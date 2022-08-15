@@ -2,7 +2,6 @@
 #include "xis.h"
 #include "sketches.h"
 #include "utils.h"
-#include <utility>
 #include "thread_utils.h"
 #include "filter.h"
 #include "getticks.h"
@@ -10,29 +9,20 @@
 #include "LossyCountMinSketch.h"
 #include "prng.h"
 
-#include <numeric> 
-#include <sys/time.h>
-#include <time.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <x86intrin.h>
-#include <algorithm>
 #include <random>
 #include <cstring>
-#include <string>
+#include <map>
 #include <unordered_map>
 #include <set>
 #include <fstream>
 #include <iterator>
 #include <sstream>
-#include <iostream>
+#include <iomanip>
 
 #define NO_SQUASHING 0
 #define HASHA 151261303
 #define HASHB 6722461
-#define TRUE 1
-#define FALSE 0
 #define MAX_HISTOGRAM_SIZE 100000000
 
 using namespace std;
@@ -80,7 +70,6 @@ void deallocate_sketch( LossySketch* sketch )
 unsigned short precomputedMods[512];
 
 static inline int findOwner(unsigned int key){
-    //return precomputedMods[hash31(HASHA,HASHB,key) & (BUCKETS-1)]; // Cardinality estimation
     return precomputedMods[key & 511];
 }
 volatile int threadsFinished = 0;
@@ -373,14 +362,14 @@ void topkapi_query_merge(threadDataStruct *localThreadData, int range,int num_to
                             (range/frac_epsilon));
 
         for (i = 0; i < range; ++i){
-            is_heavy_hitter[i] = FALSE;
+            is_heavy_hitter[i] = false;
             for (j = 0; j < rows_no; ++j){
                 if ( j == 0){
                     elem = merged->identity[i];
                     count = merged->lossyCount[i];
                     if (count >= threshold)
                     {
-                        is_heavy_hitter[i] = TRUE;
+                        is_heavy_hitter[i] = true;
                     }
                 } 
                 else {
@@ -390,7 +379,7 @@ void topkapi_query_merge(threadDataStruct *localThreadData, int range,int num_to
                     continue;
                 } else if (merged[j].lossyCount[id] >= threshold)
                 {
-                    is_heavy_hitter[i] = TRUE;
+                    is_heavy_hitter[i] = true;
                 }
                 if (merged[j].lossyCount[id] > count)
                     count = merged[j].lossyCount[id];
@@ -421,21 +410,6 @@ void topkapi_query_merge(threadDataStruct *localThreadData, int range,int num_to
         }
         free(merged);
         free(is_heavy_hitter);
-}
-
-void topkapi_query(threadDataStruct * localThreadData,int K,float phi,vector<pair<uint32_t,uint32_t>>* v ){
-    v->clear();
-    std::unordered_map<uint32_t,uint32_t> res;
-    for (int t=0;t < numberOfThreads;t++){
-        threadData[t].topkapi_instance->Query_Local_Sketch(&res);
-    }
-    for (auto elem : res){
-        v->push_back(elem);
-    }
-    std::sort(v->data(), v->data()+v->size(), sortbysecdesc);
-
-    /* slice away elements that are not part of the top k */
-    v->erase(v->end()-(v->size()-K),v->end());
 }
 
 // Performs a frequent elements query 
@@ -510,18 +484,17 @@ void threadWork(threadDataStruct *localThreadData)
             if (shouldTopKQuery(localThreadData) < TOPK_QUERY_RATE)
             {
                 #if LATENCY
-                uint64_t tick = rdtsc();  // Latency measurement
+                uint64_t tick = getticks();  // Latency measurement
                 #endif
 
                 #if SPACESAVING
                 FEquery(localThreadData,PHI,localThreadData->lasttopk);
                 #elif TOPKAPI
-                //topkapi_query(localThreadData,K,PHI,&(localThreadData->lasttopk));
                 topkapi_query_merge(localThreadData,buckets_no,K);
                 #endif
 
                 #if LATENCY
-                localThreadData->latencies[numTopKQueries >= 2000000 ? numTopKQueries % 2000000 : numTopKQueries]=rdtsc() - tick;
+                localThreadData->latencies[numTopKQueries >= 2000000 ? numTopKQueries % 2000000 : numTopKQueries]=getticks() - tick;
                 //printf("after: %lu\n",rdtsc() - tick); // Latency measurement
                 #endif
                 numTopKQueries++;
@@ -956,10 +929,8 @@ int main(int argc, char **argv)
         // Perform a query at the end of the stream
         #if SPACESAVING
         FEquery(&(threadData[0]),PHI,threadData[0].lasttopk);
-        //LCL_ShowHeap(threadData[0].ss);
         #elif TOPKAPI
         topkapi_query_merge(&threadData[0],buckets_no,num_topk);
-        //topkapi_query(&(threadData[0]),K,PHI,&(threadData[0].lasttopk));
         #endif
         #endif
         postProcessing();
@@ -979,14 +950,10 @@ int main(int argc, char **argv)
         for (int i=0; i<numberOfThreads; i++){
             totalFiltersInserted+=threadData[i].numInsertedFilters;
             totalFiltersums+=threadData[i].accumFilters;
-            #if (! SINGLE) && DEBUG
-            printf("id:%d number of filters:%u, num items: %llu avg:%f\n",threadData[i].tid,threadData[i].numInsertedFilters,threadData[i].accumFilters,threadData[i].accumFilters/(double)threadData[i].numInsertedFilters);
-            #endif
-            //printf("thread: %d num uniques: %d\n",threadData[i].tid,threadData[i].num_uniques);
         }
 
         #if LATENCY
-        const double clockspeed_hz = 3066775000.0; // clockspeed of the server
+        const double clockspeed_hz = 3601000000.0; // clockspeed of the server :3066775000.0
         double tot_avg=0.0;
         double average=0.0;
         for(int i=0;i<numberOfThreads;i++){
@@ -1011,9 +978,6 @@ int main(int argc, char **argv)
         //saveMemoryConsumption(&threadData[0],numberOfThreads);
         #endif
 
-        #if (! SINGLE) && DEBUG
-        printf("Number of items per full filter on average: %u \n ", totalFiltersums/totalFiltersInserted);
-        #endif
         printf("Insertion throughput %f MInserts per sec\n", (float) (sumNumOps- sumTopKQueries) / getTimeMs() / 1000);
         printf("Query throughput %f MQueries per sec\n", (float)sumTopKQueries / getTimeMs() / 1000);
         printf("Total processing throughput %f MOps per sec\n", (float)sumNumOps / getTimeMs() / 1000);
