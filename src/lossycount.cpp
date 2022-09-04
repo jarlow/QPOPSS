@@ -1,6 +1,6 @@
 
 #include <stdio.h>
-#include <set>
+#include <unordered_set>
 #include "lossycount.h"
 #include "prng.h"
 #include "plf_stack.h"
@@ -106,8 +106,10 @@ static inline void swapAndMaintainHashtable(LCLCounter *one, LCLCounter *other, 
 			one->next->prev=one; // Connect this one to the next one
 
 		//Do same as above for other node:
-		if (!other->prev)
-			lcl->hashtable[other->hash]=other; 
+		if (!other->prev){
+			if (other->item!=LCL_NULLITEM)
+				lcl->hashtable[other->hash]=other;
+		}
 		else
 			other->prev->next=other; 
 		if (other->next)
@@ -290,12 +292,8 @@ void MinMaxHeapPushUp(const LCL_type * lcl, const int ptr){
 LCLCounter * LCL_FindItem(LCL_type * lcl, LCLitem_t item)
 { // find a particular item in the date structure and return a pointer to it
 	LCLCounter * hashptr;
-	int hashval;
 
-	hashval=(int) hash31(lcl->hasha, lcl->hashb,item) % lcl->hashsize;
-	if (hashval == 0){
-		hashval=1;
-	}
+	const int hashval=(int) hash31(lcl->hasha, lcl->hashb,item) % lcl->hashsize;
 	hashptr=lcl->hashtable[hashval];
 	// compute the hash value of the item, and begin to look for it in 
 	// the hash table
@@ -409,7 +407,7 @@ void LCL_Output(LCL_type *lcl, const int thresh, std::vector<std::pair<uint32_t,
 	#if MINMAXHEAP
 	uint16_t curr_node;
 	plf::stack<uint16_t> stack;
-	std::set <uint16_t> visitedgpars;
+	std::unordered_set <uint16_t> visitedgpars;
 	// 2 and 3 are the max nodes with largest count
 	if (lcl->counters[2].count>thresh)
 		stack.push(2);
