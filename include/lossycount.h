@@ -49,7 +49,7 @@ void LCL_Update(LCL_type *, LCLitem_t, LCLweight_t);
 int LCL_Size(LCL_type *);
 LCLweight_t LCL_PointEst(LCL_type *, LCLitem_t);
 LCLweight_t LCL_PointErr(LCL_type *, LCLitem_t);
-void LCL_Output(LCL_type *,int,std::vector<std::pair<uint32_t,uint32_t>>&);
+int LCL_Output(LCL_type *,int,std::vector<std::pair<uint32_t,uint32_t>>*);
 void LCL_ShowHeap(LCL_type *);
 LCL_type * LCL_Copy(LCL_type *);
 void LCL_CheckHash(LCL_type * lcl, uint32_t item, int hash);

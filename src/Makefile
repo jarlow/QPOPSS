@@ -1,4 +1,4 @@
-INCLUDE = -I../include
+INCLUDE = -I. -I../include -I../include/apache-data-sketches
 CPP = g++ -O2 -Wno-deprecated -pthread -g -std=c++11 $(INCLUDE) -DITHACA=$(ITHACA)
 CPPDEBUG = g++ -O2 -Wno-deprecated -pthread -std=c++11 -g $(INCLUDE)
 BIN = ../bin

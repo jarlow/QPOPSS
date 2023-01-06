@@ -401,23 +401,18 @@ int LCL_cmp( const void * a, const void * b) {
 }
 
 // Output for Delegation Space-Saving
-void LCL_Output(LCL_type *lcl, const int thresh, std::vector<std::pair<uint32_t,uint32_t>> &v)
+int LCL_Output(LCL_type * lcl, int thresh,std::vector<std::pair<uint32_t,uint32_t>>* v)
 {
-	const int size=lcl->size;
-	#if MINMAXHEAP
-	uint16_t curr_node;
-	plf::stack<uint16_t> stack;
-	std::unordered_set <uint16_t> visitedgpars;
-	// 2 and 3 are the max nodes with largest count
-	if (lcl->counters[2].count>thresh)
-		stack.push(2);
-	if (lcl->counters[3].count>thresh)
-		stack.push(3);
+	int numFrequentElems = 0;
+	#if MAXHEAP
+	int curr_node;
+	plf::stack<int> stack;
+	stack.push(1); // 1 is root
 	while(!stack.empty()){
 		curr_node = stack.top();
 		stack.pop();
 		if (isMaxLevel(curr_node,lcl)){
-			if (hasGrandchildren(curr_node,size)){
+			if (hasGrandchildren(curr_node,lcl->size)){
 				uint16_t gc = curr_node << 2;
 				if (lcl->counters[gc].count >= thresh)
 					stack.push(gc);
@@ -429,7 +424,7 @@ void LCL_Output(LCL_type *lcl, const int thresh, std::vector<std::pair<uint32_t,
 					stack.push(gc+3);
 			}
 			else{
-				if (hasChildren(curr_node,size)){
+				if (hasChildren(curr_node,lcl->size)){
 					uint16_t ch = curr_node << 1;
 					if (lcl->counters[ch].count >= thresh)
 						stack.push(ch);
@@ -448,16 +443,20 @@ void LCL_Output(LCL_type *lcl, const int thresh, std::vector<std::pair<uint32_t,
 					}
 				}
 			}
+			v->push_back(std::make_pair((uint32_t)lcl->maxheap[curr_node]->item,lcl->maxheap[curr_node]->count));
+			numFrequentElems++;
 		}
 		v.push_back(std::make_pair(lcl->counters[curr_node].item,lcl->counters[curr_node].count));
 	}
 	#else
-	for (int i=1;i <=size;++i){
+	for (int i=1;i <=lcl->size;++i){
 		if (lcl->counters[i].count >= thresh){
-			v.push_back(std::make_pair(lcl->counters[i].item,lcl->counters[i].count));
+			v->push_back(std::make_pair((uint32_t)lcl->counters[i].item,lcl->counters[i].count));
+			numFrequentElems++;
 		}
 	}
 	#endif
+	return numFrequentElems;
 }
 
 void LCL_ShowHeap(LCL_type * lcl)
