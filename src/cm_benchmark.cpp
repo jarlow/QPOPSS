@@ -2,36 +2,32 @@
 #include "xis.h"
 #include "sketches.h"
 #include "utils.h"
-#include <utility>
 #include "thread_utils.h"
 #include "filter.h"
 #include "getticks.h"
 #include "lossycount.h"
 #include "LossyCountMinSketch.h"
+#include "prng.h"
+#include "owfrequent.h"
+#include "buffer.h"
+#include "apache-data-sketches/frequent_items_sketch.hpp"
 
-#include <numeric> 
-#include <sys/time.h>
-#include <time.h>
-#include <stdio.h>
-#include <stdlib.h>
+
 #include <unistd.h>
-#include <x86intrin.h>
-#include <algorithm>
-#include <random>
 #include <cstring>
-#include <string>
+#include <cmath>
+#include <map>
 #include <unordered_map>
 #include <set>
 #include <fstream>
 #include <iterator>
 #include <sstream>
-#include <iostream>
+#include <iomanip>
 
 #define NO_SQUASHING 0
 #define HASHA 151261303
 #define HASHB 6722461
-#define TRUE 1
-#define FALSE 0
+#define MAX_HISTOGRAM_SIZE 100000000
 
 using namespace std;
 
@@ -318,6 +314,8 @@ void insert(threadDataStruct * localThreadData, unsigned int key, unsigned int i
     int owner = findOwner(key); 
     localThreadData->sketchArray[owner]->enqueueRequest(key);
     localThreadData->theSketch->serveAllRequests(); //Serve any requests you can find in your own queue
+#elif PRIF
+    OWF_Update(localThreadData->owf,key, increment);
 #endif
 }
 
@@ -351,14 +349,14 @@ void topkapi_query_merge(threadDataStruct *localThreadData, int range,int num_to
                             (range/frac_epsilon));
 
         for (i = 0; i < range; ++i){
-            is_heavy_hitter[i] = FALSE;
+            is_heavy_hitter[i] = false;
             for (j = 0; j < rows_no; ++j){
                 if ( j == 0){
                     elem = merged->identity[i];
                     count = merged->lossyCount[i];
                     if (count >= threshold)
                     {
-                        is_heavy_hitter[i] = TRUE;
+                        is_heavy_hitter[i] = true;
                     }
                 } 
                 else {
@@ -368,7 +366,7 @@ void topkapi_query_merge(threadDataStruct *localThreadData, int range,int num_to
                     continue;
                 } else if (merged[j].lossyCount[id] >= threshold)
                 {
-                    is_heavy_hitter[i] = TRUE;
+                    is_heavy_hitter[i] = true;
                 }
                 if (merged[j].lossyCount[id] > count)
                     count = merged[j].lossyCount[id];
@@ -416,19 +414,36 @@ void topkapi_query(threadDataStruct * localThreadData,int K,float phi,vector<pai
     v->erase(v->end()-(v->size()-K),v->end());
 }
 
+void addDelegationFilterCounts(int tid, vector<pair<uint32_t,uint32_t>>::iterator &it, const vector<pair<uint32_t,uint32_t>>::const_iterator &end){
+    auto start = it;
+    for (int i=0; i<numberOfThreads; i++){
+        FilterStruct* filter = &(filterMatrix[i * (numberOfThreads) + tid]);
+        int advancements=0;
+        while (it != end){
+            for (int k=0; k<filter->filterCount; k++){
+                if (it->first == filter->filter_id[k]){ // if matching id, add count to the result. 
+                    it->second += filter->filter_count[k];
+                    //printf("Found match for %d, adding %d to count\n",it->first,filter->filter_count[k]);
+                }
+            }
+            ++it;
+        }
+        it = start;
+    };
+}
+
 // Performs a frequent elements query 
-void FEquery(threadDataStruct * localThreadData,float phi,vector<pair<uint32_t,uint32_t>>* v ){
-    //float cardinality_estimate=0.0;
+void FEquery(threadDataStruct * localThreadData,float phi,vector<pair<uint32_t,uint32_t>>* result){
+    int numFETotal=0;
     LCL_type* local_spacesaving;
-    v->resize(0);
+    result->resize(0);
     uint64_t streamsize=0;
-    
+
     // If single threaded just extract frequent elements from the local Space-Saving instance
     #if SINGLE
     streamsize = localThreadData->substreamSize;
     local_spacesaving = localThreadData->ss;
-    LCL_Output(local_spacesaving,streamsize*phi,v);
-    //cardinality_estimate=threadData[0].sum_of_buckets;
+    LCL_Output(local_spacesaving,streamsize*phi,result);
 
     // If Delegation Space-Saving then extract local frequent elements at all threads
     #else
@@ -450,9 +465,14 @@ void FEquery(threadDataStruct * localThreadData,float phi,vector<pair<uint32_t,u
                 continue;
             }
             local_spacesaving=threadData[i].ss;
-            LCL_Output(local_spacesaving,streamsize*phi,v);
-            //cardinality_estimate+=threadData[i].sum_of_buckets;
+            int numFE = LCL_Output(local_spacesaving,streamsize*phi,result);
             pthread_mutex_unlock(&threadData[i].mutex);
+            
+            auto it = result->begin();
+            advance(it,numFETotal);
+            addDelegationFilterCounts(i,it,result->end());
+            numFETotal += numFE;
+            
             bm[i]=true;
             num_complete++;
             serveDelegatedInserts(localThreadData);
@@ -462,8 +482,61 @@ void FEquery(threadDataStruct * localThreadData,float phi,vector<pair<uint32_t,u
     #endif
 
     // Sort output
-    
+    std::sort(result->data(), result->data()+result->size(),sortbysecdesc);
 }
+
+void prifMergeThreadWorkPreins(threadDataStruct *localThreadData){
+    std::pair<uint32_t,uint32_t> res;
+    while (!startBenchmark)
+    {
+    }
+    while (startBenchmark)
+    {
+        getitem(&res,&startBenchmark); // Get a frequency increment from the shared buffer
+        OWF_Update_Merging_Thread(localThreadData->owf,res.first, res.second); // update merging owf with the frequency increment
+    }
+    int c =0;
+    while (buffercontains(&res)){ // empty buffer
+        c++;
+        OWF_Update_Merging_Thread(localThreadData->owf,res.first, res.second); // update merging owf with the frequency increment
+    }
+    printf("Emptying buffer, entries %d\n",c);
+}
+
+void prifQuery(threadDataStruct *localThreadData){
+    uint32_t streamsize = 0;
+    for (int i=0;i<numberOfThreads;i++){
+        streamsize+=threadData[i].owf->N_i;
+    }
+    OWF_Output(localThreadData->owf,streamsize*(PHI-(1/(float)COUNTING_PARAM)),localThreadData->lasttopk);
+    std::sort(localThreadData->lasttopk.data(), localThreadData->lasttopk.data()+localThreadData->lasttopk.size(),sortbysecdesc);
+}
+
+void prifMergeThreadWork(threadDataStruct *localThreadData){
+    int numTopKQueries = 0;
+    std::pair<uint32_t,uint32_t> res;
+    while (!startBenchmark)
+    {
+    }
+    while (startBenchmark)
+    {
+        getitem(&res,&startBenchmark); // Get a frequency increment from the shared buffer
+        OWF_Update_Merging_Thread(localThreadData->owf,res.first, res.second); // update merging owf with the frequency increment
+        if (shouldTopKQuery(localThreadData) < TOPK_QUERY_RATE)
+        {   
+            prifQuery(localThreadData);
+            numTopKQueries++;
+        }
+    }
+    int c = 0;
+    while (buffercontains(&res)){ // empty buffer
+        c++;
+        OWF_Update_Merging_Thread(localThreadData->owf,res.first, res.second); // update merging owf with the frequency increment
+    }
+    printf("Emptying buffer, entries %d\n",c);
+    localThreadData->numTopKQueries=numTopKQueries;
+}
+
 void threadWork(threadDataStruct *localThreadData)
 {
     int start = localThreadData->startIndex;
@@ -486,24 +559,22 @@ void threadWork(threadDataStruct *localThreadData)
             if (shouldTopKQuery(localThreadData) < TOPK_QUERY_RATE)
             {
                 #if LATENCY
-                uint64_t tick = rdtsc();  // Latency measurement
+                uint64_t tick = getticks();  // Latency measurement
                 #endif
 
                 #if SPACESAVING
-                FEquery(localThreadData,PHI,&(localThreadData->lasttopk));
+                FEquery(localThreadData,PHI,&localThreadData->lasttopk);
                 #elif TOPKAPI
-                //topkapi_query(localThreadData,K,PHI,&(localThreadData->lasttopk));
                 topkapi_query_merge(localThreadData,buckets_no,K);
                 #endif
 
                 #if LATENCY
-                localThreadData->latencies[numTopKQueries >= 2000000 ? numTopKQueries % 2000000 : numTopKQueries]=rdtsc() - tick;
-                //printf("after: %lu\n",rdtsc() - tick); // Latency measurement
+                localThreadData->latencies[numTopKQueries >= 2000000 ? numTopKQueries % 2000000 : numTopKQueries] = getticks() - tick;
                 #endif
                 numTopKQueries++;
             }                        
             numOps++;
-            #if TOPKAPI
+            #if TOPKAPI || PRIF
             insert(localThreadData,key,1);
             #elif DELEGATION_FILTERS
             serveDelegatedInserts(localThreadData);
@@ -519,6 +590,10 @@ void threadWork(threadDataStruct *localThreadData)
             break;
         }
     }
+    #if PRIF
+    startBenchmark = false;
+    __sync_fetch_and_add( &threadsFinished, 1);
+    #endif
     #if (!DURATION && DELEGATION_FILTERS) 
     // keep clearing your backlog, other wise we might endup in a deadlock
     serveDelegatedInserts(localThreadData); 
@@ -545,15 +620,20 @@ void * threadEntryPoint(void * threadArgs){
     #else
     setaffinity_oncpu(14*(tid%2)+(tid/2)%14);
     #endif
-
-    int threadWorkSize = tuples_no /  (numberOfThreads);
+    int oneLessWorkerThread = 0;
+    #if PRIF 
+    oneLessWorkerThread = 1;
+    #endif
+    int threadWorkSize = tuples_no /  (numberOfThreads - oneLessWorkerThread);
     localThreadData->startIndex = tid * threadWorkSize;
     localThreadData->endIndex =  localThreadData->startIndex + threadWorkSize; //Stop before you reach that index
     //The last thread gets the rest if tuples_no is not devisible by numberOfThreads
     //(it only matters for accuracy tests)
-    if (tid == (numberOfThreads - 1)){
+    if (tid == (numberOfThreads - 1 - oneLessWorkerThread)){
         localThreadData->endIndex = tuples_no;
     }
+    
+
     localThreadData->pendingQueriesKeys =  (int *)calloc(numberOfThreads, sizeof(int));
     localThreadData->pendingQueriesCounts =  (unsigned int *)calloc(numberOfThreads, sizeof(unsigned int));
     localThreadData->pendingQueriesFlags =  (volatile int *)calloc(numberOfThreads, sizeof(volatile int));
@@ -566,19 +646,30 @@ void * threadEntryPoint(void * threadArgs){
     localThreadData->insertsPending = 0;
     localThreadData->queriesPending = 0;
     localThreadData->listOfFullFilters = NULL;
-    localThreadData->seeds = seed_rand();    
+    localThreadData->seeds = seed_rand();
     // Insert the data once, here we let each thread process the whole dataset,
     // and let the threads cherry-pick the elements that they own.
-    #if PREINSERT
+    #if PREINSERT && !ACCURACY
     int start,end;
-    #if TOPKAPI
+    #if TOPKAPI || PRIF
     start=localThreadData->startIndex;
     end=localThreadData->endIndex;
+    startBenchmark = true;
     #else
     start=0;
     end=tuples_no;
     #endif
-
+    #if PRIF
+    if (tid == numberOfThreads-1){
+        prifMergeThreadWorkPreins(localThreadData);
+    }
+    else{
+        for (int i = start; i < end; i++){
+        uint32_t key = (*localThreadData->theData->tuples)[i];
+        insert(localThreadData,key,1);
+        }
+    }
+    #else
     for (int i = start; i < end; i++){
         uint32_t key = (*localThreadData->theData->tuples)[i];
         #if DELEGATION_FILTERS
@@ -595,9 +686,28 @@ void * threadEntryPoint(void * threadArgs){
         #endif
     }
     #endif
+    #if PRIF
+    __sync_fetch_and_add( &threadsFinished, 1);
+    if (threadsFinished == numberOfThreads-1){
+        startBenchmark = false; // stop merging thread. 
+        threadsFinished = 0; // reset threadsFinished
+        printf("Done with preinsert\n");
+    }
+    #endif
+    #endif
+
     barrier_cross(&barrier_global);
     barrier_cross(&barrier_started);
+    #if PRIF
+    if (tid == numberOfThreads-1){
+        prifMergeThreadWork(localThreadData);
+    }
+    else{
+        threadWork(localThreadData);
+    }
+    #else
     threadWork(localThreadData);
+    #endif
 
     return NULL;
 }
@@ -667,14 +777,14 @@ void printAccuracyResults(vector<pair<uint32_t,uint32_t>>*sorted_histogram,vecto
         if (elems.size() == 0){
             precision=1;
         }
-        printf("\nElements: %d, Truth:%d, True Positives:%d",elems.size(),truth.size(),true_positives.size());
+        printf("\nElements: %ld, Truth:%ld, True Positives:%ld",elems.size(),truth.size(),true_positives.size());
         printf("\nPrecision:%f, Recall:%f, AverageRelativeError:%f\n", precision,recall,avg_rel_error );
         printf("\n");
 }
 void saveAccuracyHistogram(vector<pair<uint32_t,uint32_t>>*sorted_histogram,vector<pair<uint32_t,uint32_t>>*lasttopk,uint64_t sum){
         FILE *fp = fopen("logs/topk_results.txt", "w");
         //N, K,Phi in first row.
-        fprintf(fp,"%llu %d %f\n",sum,K,PHI);
+        fprintf(fp,"%lu %d %f\n",sum,K,PHI);
         for (int i = 0; i < sorted_histogram->size(); i++){
             pair<uint32_t,uint32_t> ltopk;
             if (i < lasttopk->size()){
@@ -698,7 +808,7 @@ void read_ints(const char *file_name, vector<uint32_t>* input_data , vector<uint
     
     while (!feof(file))
     {
-        fscanf(file, "%d", &i);
+        (void) !fscanf(file, "%d", &i);
         input_data->push_back(i);
         histogram->at(i)+=1;
     }
@@ -750,56 +860,15 @@ void saveMemoryConsumption(threadDataStruct* localThreadData, int numberOfThread
     fclose(fp);
 }
 
-std::string to_string_trim_zeros(double a){
-    // Print value to a string
-    std::stringstream ss;
-    ss << std::fixed << std::setprecision(2) << a;
-    std::string str = ss.str();
-    // Ensure that there is a decimal point somewhere (there should be)
-    if(str.find('.') != std::string::npos)
-    {
-        // Remove trailing zeroes
-        str = str.substr(0, str.find_last_not_of('0')+1);
-        // If the decimal point is now the last character, remove that as well
-        if(str.find('.') == str.size()-1)
-        {
-            str = str.substr(0, str.size()-1);
-        }
-    }
-    return str;
-}
-
-void generateDatasets(){
-    for (int size : {1000000,10000000,100000000}){ 
-        for (double parameter : {0.5,0.75,1.0,1.25,1.5,1.75,2.0,2.25,2.5,2.75,3.0}){
-            // Generate data and shuffle
-            Relation *r1 = new Relation(size, size);
-            r1->Generate_Data(1, parameter, 0);
-            auto rng = default_random_engine {};
-            shuffle(begin((*r1->tuples)), end((*r1->tuples)), rng);
-
-            // write data to file
-            std::ofstream output_file("datasets/zipf_" + to_string_trim_zeros(parameter) + "_"  + std::to_string(size) +  ".txt");
-            std::ostream_iterator<std::uint32_t> output_iterator(output_file, " ");
-            std::copy(r1->tuples->begin(), r1->tuples->end(), output_iterator);
-            output_file.close();
-        }
-    }
-}
 
 int main(int argc, char **argv)
 {
-    #if GENERATE_MODE
-        generateDatasets();
-        exit(0);
-    #endif
-
     int DIST_TYPE;
     double DIST_PARAM, DIST_SHUFF;
 
     int runs_no;
 
-   if ((argc != 18) && (argc != 19))
+   if ((argc != 19) && (argc != 20))
     {
         printf("Usage: sketch_compare.out dom_size tuples_no buckets_no rows_no DIST_TYPE DIST_PARAM DIST_DECOR runs_no num_threads querry_rate duration(in sec, 0 means one pass over the data), (optional) input_file_name \n");
         exit(1);
@@ -807,12 +876,12 @@ int main(int argc, char **argv)
     int use_real_data = 0;
     char input_file_name[1024];
     //Histogram of data distribution:
-    vector<uint32_t> * histogram = new vector<uint32_t>(100000000,0);
-    vector<uint32_t> * input_data = new vector<uint32_t>();
-    input_data->reserve(100000000);
+    vector<uint32_t> *histogram = new vector<uint32_t>(MAX_HISTOGRAM_SIZE,0);
+    vector<uint32_t> *input_data = new vector<uint32_t>();
+    input_data->reserve(MAX_HISTOGRAM_SIZE);
 
-    if (argc==19){
-        strcpy(input_file_name,argv[18]);
+    if (argc==20){
+        strcpy(input_file_name,argv[19]);
         read_ints(input_file_name, input_data,histogram);
     }
     else{
@@ -849,6 +918,8 @@ int main(int argc, char **argv)
 
     MAX_FILTER_UNIQUES = atoi(argv[17]);
 
+    BETA = atof(argv[18]);
+
     //srand((unsigned int)time((time_t *)NULL));
     srand(0);
 
@@ -863,159 +934,148 @@ int main(int argc, char **argv)
         c++;
         c = c % (numberOfThreads);
     }  
+    unsigned int I1, I2;
 
-    for (int jj = 0; jj < runs_no; jj++)
+    //generate the pseudo-random numbers for CM sketches; use CW2B
+    //NOTE: doesn't work with CW2B, need to use CW4B. Why?
+    Xi **cm_cw2b = new Xi *[rows_no];
+    for (int i = 0; i < rows_no; i++)
     {
-        unsigned int I1, I2;
-
-        //generate the pseudo-random numbers for CM sketches; use CW2B
-        //NOTE: doesn't work with CW2B, need to use CW4B. Why?
-        Xi **cm_cw2b = new Xi *[rows_no];
-        for (int i = 0; i < rows_no; i++)
-        {
-            I1 = Random_Generate();
-            I2 = Random_Generate();
-            cm_cw2b[i] = new Xi_CW4B(I1, I2, buckets_no);
-        }
-
-        printf("size of the sketch %zu\n",sizeof(Count_Min_Sketch));
-        globalSketch = new Count_Min_Sketch(buckets_no, rows_no, cm_cw2b);
-        Count_Min_Sketch ** cmArray = (Count_Min_Sketch **) aligned_alloc(64, (numberOfThreads) * sizeof(Count_Min_Sketch *));
-        LossySketch *  th_local_sketch = (LossySketch* ) malloc(rows_no*numberOfThreads*
-                                            sizeof(LossySketch));
-
-
-        for (int i=0; i<numberOfThreads; i++){
-            cmArray[i] = new Count_Min_Sketch(buckets_no, rows_no, cm_cw2b);
-            cmArray[i]->SetGlobalSketch(globalSketch);
-            for (int th_i = 0; th_i < rows_no; ++th_i){
-                allocate_sketch( &th_local_sketch[i * rows_no + th_i], buckets_no);
-            }
-        }
-
-        filterMatrix = (FilterStruct *) calloc((numberOfThreads)*(numberOfThreads), sizeof(FilterStruct));
-        for (int thread = 0; thread< (numberOfThreads)*(numberOfThreads); thread++){
-            filterMatrix[thread].filterCount=0;
-            //filterMatrix[thread].filterFull=false;
-            filterMatrix[thread].filter_id = (uint32_t *) calloc(MAX_FILTER_UNIQUES,sizeof(uint32_t));
-            filterMatrix[thread].filter_count = (uint32_t *) calloc(MAX_FILTER_UNIQUES,sizeof(uint32_t));
-            for (int j=0; j< MAX_FILTER_UNIQUES; j++){
-                filterMatrix[thread].filter_id[j]=-1;
-            }
-        }
-        initThreadData(cmArray,r1,MAX_FILTER_SUM,MAX_FILTER_UNIQUES,TOPK_QUERY_RATE,tuples_no,numberOfThreads,th_local_sketch,cm_cw2b);
-        spawnThreads();        
-        barrier_cross(&barrier_global);       
-        startTime();
-
-        startBenchmark = 1;
-        if (DURATION > 0){
-			sleep(DURATION);
-            startBenchmark = 0;
-        }
-        collectThreads();
-
-        stopTime();
-        
-        int num_topk=0;
-        vector<pair<uint32_t,uint32_t>> sorted_histogram;
-        uint64_t streamsize=getSortedHistogram(sorted_histogram,histogram);
-        // Find out how many heavy hitters there are
-        for (int j=0;j<sorted_histogram.size();j++){
-            if (sorted_histogram[j].second < streamsize*PHI){
-                break;
-            }
-            num_topk++;
-        }
-        #if ACCURACY 
-        // Perform a query at the end of the stream
-        #if SPACESAVING
-        FEquery(&(threadData[0]),PHI,&(threadData[0].lasttopk));
-        #elif TOPKAPI
-        topkapi_query_merge(&threadData[0],buckets_no,num_topk);
-        //topkapi_query(&(threadData[0]),K,PHI,&(threadData[0].lasttopk));
-        #endif
-        #endif
-        postProcessing();
-        
-        long int sumNumQueries=0, sumNumOps = 0, sumTopKQueries = 0;
-        double sumReturnValues = 0;
-        for (int i=0; i<numberOfThreads; i++){
-            sumNumQueries += threadData[i].numQueries;
-            sumNumOps += threadData[i].numOps;
-            sumReturnValues += threadData[i].returnData;
-            sumTopKQueries += threadData[i].numTopKQueries;
-        }
-
-        printf("Total insertion time (ms): %lu\n",getTimeMs());
-        uint64_t totalFiltersInserted=0;
-        uint64_t totalFiltersums=0;
-        for (int i=0; i<numberOfThreads; i++){
-            totalFiltersInserted+=threadData[i].numInsertedFilters;
-            totalFiltersums+=threadData[i].accumFilters;
-            #if (! SINGLE) && DEBUG
-            printf("id:%d number of filters:%u, num items: %llu avg:%f\n",threadData[i].tid,threadData[i].numInsertedFilters,threadData[i].accumFilters,threadData[i].accumFilters/(double)threadData[i].numInsertedFilters);
-            #endif
-            //printf("thread: %d num uniques: %d\n",threadData[i].tid,threadData[i].num_uniques);
-        }
-
-        #if LATENCY
-        const double clockspeed_hz = 3066775000.0; // clockspeed of the server
-        double tot_avg=0.0;
-        double average=0.0;
-        for(int i=0;i<numberOfThreads;i++){
-            int numtopkqueries=min(2000000,threadData[i].numTopKQueries);
-            for(int j=0;j<numtopkqueries;j++){
-                average+= (threadData[i].latencies[j] / clockspeed_hz);
-            }
-            average*= pow(10,6); // nano convert to microseconds
-            average/=numtopkqueries;
-            tot_avg+=average;
-            average=0.0;
-        }
-        tot_avg = tot_avg/(double)numberOfThreads;
-        printf("Average latency: %lf us\n",tot_avg);
-        #endif
-
-
-        #if ACCURACY
-        vector<pair<uint32_t,uint32_t>> lasttopk=threadData[0].lasttopk; // Query at the end of the stream
-        printAccuracyResults(&sorted_histogram,&lasttopk,streamsize);
-        saveAccuracyHistogram(&sorted_histogram,&lasttopk,streamsize);
-        //saveMemoryConsumption(&threadData[0],numberOfThreads);
-        #endif
-
-        #if (! SINGLE) && DEBUG
-        printf("Number of items per full filter on average: %u \n ", totalFiltersums/totalFiltersInserted);
-        #endif
-        printf("Insertion throughput %f MInserts per sec\n", (float) (sumNumOps- sumTopKQueries) / getTimeMs() / 1000);
-        printf("Query throughput %f MQueries per sec\n", (float)sumTopKQueries / getTimeMs() / 1000);
-        printf("Total processing throughput %f MOps per sec\n", (float)sumNumOps / getTimeMs() / 1000);
-        
-        for (int i = 0; i < rows_no; i++)
-        {
-            delete cm_cw2b[i];
-        }
-
-        delete[] cm_cw2b;
-
-        for (int i=0; i<numberOfThreads; i++){
-            delete cmArray[i];
-            LCL_Destroy(threadData[i].ss);
-        }
-        free(cmArray);
-        
-        printf("-----------------------\n");
-        printf("DURATION:            %d\n", DURATION);
-        printf("QUERRY RATE:         %d\n", QUERRY_RATE);
-        printf("THREADS:             %d\n", numberOfThreads);
-        printf("SKEW:                %g\n", DIST_PARAM);
-        printf("NUM TOPK:            %d\n", num_topk);
-        printf("PHI:                 %g\n", PHI);
-        printf("FILEPATH:            %s\n", input_file_name);
-
-
+        I1 = Random_Generate();
+        I2 = Random_Generate();
+        cm_cw2b[i] = new Xi_CW4B(I1, I2, buckets_no);
     }
+
+    printf("size of the sketch %zu\n",sizeof(Count_Min_Sketch));
+    globalSketch = new Count_Min_Sketch(buckets_no, rows_no, cm_cw2b);
+    Count_Min_Sketch ** cmArray = (Count_Min_Sketch **) aligned_alloc(64, (numberOfThreads) * sizeof(Count_Min_Sketch *));
+    LossySketch *  th_local_sketch = (LossySketch* ) malloc(rows_no*numberOfThreads*
+                                        sizeof(LossySketch));
+
+
+    for (int i=0; i<numberOfThreads; i++){
+        cmArray[i] = new Count_Min_Sketch(buckets_no, rows_no, cm_cw2b);
+        cmArray[i]->SetGlobalSketch(globalSketch);
+        for (int th_i = 0; th_i < rows_no; ++th_i){
+            allocate_sketch( &th_local_sketch[i * rows_no + th_i], buckets_no);
+        }
+    }
+
+    filterMatrix = (FilterStruct *) calloc((numberOfThreads)*(numberOfThreads), sizeof(FilterStruct));
+    for (int thread = 0; thread< (numberOfThreads)*(numberOfThreads); thread++){
+        filterMatrix[thread].filterCount=0;
+        filterMatrix[thread].filterFull=false;
+        filterMatrix[thread].filter_id = (uint32_t *) calloc(MAX_FILTER_UNIQUES,sizeof(uint32_t));
+        filterMatrix[thread].filter_count = (uint32_t *) calloc(MAX_FILTER_UNIQUES,sizeof(uint32_t));
+        for (int j=0; j< MAX_FILTER_UNIQUES; j++){
+            filterMatrix[thread].filter_id[j]=-1;
+        }
+    }
+    initThreadData(cmArray,r1,MAX_FILTER_SUM,MAX_FILTER_UNIQUES,TOPK_QUERY_RATE,tuples_no,numberOfThreads,th_local_sketch,cm_cw2b,BETA);
+    spawnThreads();        
+    barrier_cross(&barrier_global);       
+    startTime();
+
+    startBenchmark = 1;
+    if (DURATION > 0){
+        sleep(DURATION);
+        startBenchmark = 0;
+    }
+    collectThreads();
+
+    stopTime();
+    
+    int num_topk=0;
+    vector<pair<uint32_t,uint32_t>> sorted_histogram;
+    uint64_t streamsize=getSortedHistogram(sorted_histogram,histogram);
+    // Find out how many heavy hitters there are
+    for (int j=0;j<sorted_histogram.size();j++){
+        if (sorted_histogram[j].second < streamsize*PHI){
+            break;
+        }
+        num_topk++;
+    }
+    #if ACCURACY 
+    // Perform a query at the end of the stream
+    #if SPACESAVING
+    FEquery(&(threadData[numberOfThreads-1]),PHI,&threadData[numberOfThreads-1].lasttopk);
+    #elif TOPKAPI
+    topkapi_query_merge(&threadData[numberOfThreads-1],buckets_no,num_topk);
+    #elif PRIF
+    prifQuery(&(threadData[numberOfThreads-1]));
+    #endif
+    #endif
+    postProcessing();
+    
+    long int sumNumQueries=0, sumNumOps = 0, sumTopKQueries = 0;
+    double sumReturnValues = 0;
+    for (int i=0; i<numberOfThreads; i++){
+        sumNumQueries += threadData[i].numQueries;
+        sumNumOps += threadData[i].numOps;
+        sumReturnValues += threadData[i].returnData;
+        sumTopKQueries += threadData[i].numTopKQueries;
+    }
+
+    printf("Total insertion time (ms): %lu\n",getTimeMs());
+    uint64_t totalFiltersInserted=0;
+    uint64_t totalFiltersums=0;
+    for (int i=0; i<numberOfThreads; i++){
+        totalFiltersInserted+=threadData[i].numInsertedFilters;
+        totalFiltersums+=threadData[i].accumFilters;
+    }
+
+    #if LATENCY
+    const double clockspeed_hz = 3601000000.0; // clockspeed of the server :3066775000.0
+    double tot_avg=0.0;
+    double average=0.0;
+    for(int i=0;i<numberOfThreads;i++){
+        int numtopkqueries=min(2000000,threadData[i].numTopKQueries);
+        for(int j=0;j<numtopkqueries;j++){
+            average+= (threadData[i].latencies[j] / clockspeed_hz);
+        }
+        average*= pow(10,6); // nano convert to microseconds
+        average/=numtopkqueries;
+        tot_avg+=average;
+        average=0.0;
+    }
+    tot_avg = tot_avg/(double)numberOfThreads;
+    printf("Average latency: %lf\n",tot_avg);
+    #endif
+
+
+    #if ACCURACY
+    vector<pair<uint32_t,uint32_t>> lasttopk=threadData[numberOfThreads-1].lasttopk; // Query at the end of the stream
+    printAccuracyResults(&sorted_histogram,&lasttopk,streamsize);
+    saveAccuracyHistogram(&sorted_histogram,&lasttopk,streamsize);
+    //saveMemoryConsumption(&threadData[numberOfThreads-1],numberOfThreads);
+    #endif
+
+    printf("Insertion throughput %f MInserts per sec\n", (float) (sumNumOps- sumTopKQueries) / getTimeMs() / 1000);
+    printf("Query throughput %f MQueries per sec\n", (float)sumTopKQueries / getTimeMs() / 1000);
+    printf("Total processing throughput %f MOps per sec\n", (float)sumNumOps / getTimeMs() / 1000);
+    
+    for (int i = 0; i < rows_no; i++)
+    {
+        delete cm_cw2b[i];
+    }
+
+    delete[] cm_cw2b;
+
+    for (int i=0; i<numberOfThreads; i++){
+        delete cmArray[i];
+        LCL_Destroy(threadData[i].ss);
+    }
+    free(cmArray);
+    
+    printf("-----------------------\n");
+    printf("DURATION:            %d\n", DURATION);
+    printf("QUERRY RATE:         %d\n", QUERRY_RATE);
+    printf("THREADS:             %d\n", numberOfThreads);
+    printf("SKEW:                %g\n", DIST_PARAM);
+    printf("NUM TOPK:            %d\n", num_topk);
+    printf("PHI:                 %g\n", PHI);
+    printf("FILEPATH:            %s\n", input_file_name);
+
     delete r1;
 
     return 0;

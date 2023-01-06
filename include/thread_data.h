@@ -1,3 +1,4 @@
+#pragma once
 #ifndef THREAD_DATA_H
 #define THREAD_DATA_H
 
@@ -9,6 +10,7 @@
 #include "libdivide.h"
 #include <unordered_set>
 #include "lossycount.h"
+#include "owfrequent.h"
 #include "LossyCountMinSketch.h"
 #include "concurrentqueue.h"
 
@@ -61,6 +63,7 @@ typedef struct
     uint64_t accumFilters=0;
     vector<pair<uint32_t,uint32_t>> lasttopk; 
     LCL_type* ss; //Space-Saving instance
+    OWF_type* owf; //OWFrequent instance
     std::unordered_set<int> * uniques;
     uint64_t num_uniques=0;
     int tid;
