@@ -55,8 +55,8 @@ rows=4
 universe_size="10000000"
 stream_size="10000000"
 skew="1.75"
-num_seconds=0
-EPSILONratio="0.1"
+num_seconds=5
+EPSILONratio="0.0005"
 
 
 #Real Data
@@ -66,7 +66,7 @@ EPSILONratio="0.1"
 #filename="/home/victor/git/Delegation-Space-Saving/caida_dst_port.txt"
 #Synthetic data 
 filename="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${stream_size}.txt"
-topk_rates="0"
+topk_rates="100"
 queries="0"
 phi="0.0001"
 MAX_FILTER_SUM="1000"
@@ -82,7 +82,7 @@ for version in $versions; do
     new_columns=$(num_counters_topkapi "$dss_counters" "$MAX_FILTER_UNIQUES" "$num_thr" "$rows" "$skew")
     echo "K ${K}"
     calgo_param=$(num_counters_deleg "$eps" $skew $((num_thr)))
-    echo "buckets per thread: ${new_columns}"
+    echo "CM Sketch buckets per thread: ${new_columns}"
     echo "counters per thread: ${calgo_param}"
     echo "$universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topk_rates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filename"
     output=$(./bin/$version.out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topk_rates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filename)

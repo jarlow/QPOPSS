@@ -56,8 +56,6 @@ typedef struct
     LossySketch* th_local_sketch;
     Xi** randoms;
     Frequent_CM_Sketch* topkapi_instance;
-    int* buckets; // for cardinality estimation;
-    float sum_of_buckets=0;// for cardinality estimation;
     int* latencies;
     uint64_t numInsertedFilters=0;
     uint64_t accumFilters=0;

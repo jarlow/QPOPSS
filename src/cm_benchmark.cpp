@@ -78,7 +78,6 @@ void deallocate_sketch( LossySketch* sketch )
 unsigned short precomputedMods[512];
 
 static inline int findOwner(unsigned int key){
-    //return precomputedMods[hash31(HASHA,HASHB,key) & (BUCKETS-1)]; // Cardinality estimation
     return precomputedMods[key & 511];
 }
 volatile int threadsFinished = 0;
@@ -128,24 +127,6 @@ int shouldTopKQuery(threadDataStruct *ltd){
     return ((my_random(&(ltd->seeds[0]), &(ltd->seeds[2]), &(ltd->seeds[1]))) % 1000000);
 }
 
-/* Used for cardinality estimation */
-void updateBucket(threadDataStruct * localThreadData,uint32_t key){
-    // Count leading zeros of the key
-    uint32_t hash=hash31(HASHA,HASHB,key);
-    int num_zeros=__builtin_clz(hash);
-    int thr_local_idx=(hash & (BUCKETS-1))/numberOfThreads;
-    /*update the bucket if leading zeros of key exceed previous max*/
-    if (num_zeros > localThreadData->buckets[thr_local_idx]){
-        if (localThreadData->buckets[thr_local_idx] != 0){
-            /* remove old outdated value */
-            localThreadData->sum_of_buckets-=pow(2.0,-localThreadData->buckets[thr_local_idx]);
-        }
-        /* add new value to the running total */
-        localThreadData->buckets[thr_local_idx]=num_zeros;
-        localThreadData->sum_of_buckets+=pow(2.0,-num_zeros);
-    } 
-}
-
 void serveDelegatedInserts(threadDataStruct * localThreadData){
     // Check if there is a full filter that needs emptying
     if (!localThreadData->listOfFullFilters) return;
@@ -163,7 +144,6 @@ void serveDelegatedInserts(threadDataStruct * localThreadData){
             uint32_t key = filter->filter_id[i];
             #if SPACESAVING
             LCL_Update(localThreadData->ss,key,count);
-            //updateBucket(localThreadData,key); // Cardinality estimation
             #else // If vanilla Delegation Sketch is used
             insertFilterNoWriteBack(localThreadData, key, count);
             #endif
@@ -482,9 +462,7 @@ void FEquery(threadDataStruct * localThreadData,float phi,vector<pair<uint32_t,u
     #endif
 
     // Sort output
-    std::sort(v->data(), v->data()+v->size(),sortbysecdesc);
-    //cardinality_estimate=BUCKETS_SQ*0.709/cardinality_estimate;
-    //return cardinality_estimate;
+    
 }
 void threadWork(threadDataStruct *localThreadData)
 {
@@ -996,7 +974,7 @@ int main(int argc, char **argv)
             average=0.0;
         }
         tot_avg = tot_avg/(double)numberOfThreads;
-        printf("Average latency: %lf\n",tot_avg);
+        printf("Average latency: %lf us\n",tot_avg);
         #endif
 
 

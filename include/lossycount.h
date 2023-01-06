@@ -126,7 +126,7 @@ extern int LCL_Size(LCL_type *);
 extern int LCL_PointEst(LCL_type *, LCLitem_t);
 extern int LCL_PointErr(LCL_type *, LCLitem_t);
 extern int LCL_Output(LCL_type *,int,uint32_t*,uint32_t*);
-extern void LCL_Output(LCL_type *,int,std::vector<std::pair<uint32_t,uint32_t>>*);
+extern int LCL_Output(LCL_type *,int,std::vector<std::pair<uint32_t,uint32_t>>*);
 extern int LCL_Output(LCL_type *,int,std::pair<uint32_t,uint32_t>*);
 extern std::vector<std::pair<uint32_t,uint32_t>> LCL_Output(LCL_type *,int);
 extern void LCL_Output(LCL_type*);
