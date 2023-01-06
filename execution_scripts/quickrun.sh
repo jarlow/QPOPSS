@@ -85,7 +85,7 @@ BETAratio="0.1"
 #filename="/home/victor/git/Delegation-Space-Saving/caida_dst_port.txt"
 #Synthetic data 
 filename="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${stream_size}.txt"
-topk_rates="0"
+topk_rates="100"
 queries="0"
 phi="0.00001"
 MAX_FILTER_SUM="1000"

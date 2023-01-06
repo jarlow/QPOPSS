@@ -35,7 +35,6 @@ void initThreadData(Count_Min_Sketch ** sketchArray, Relation * relation,int MAX
         threadData[i].theGlobalSketch = globalSketch;
         threadData[i].theData = relation;
         threadData[i].elementsProcessed = 0;
-        threadData[i].buckets = (int*) calloc(BUCKETS/numberOfThreads + 1,sizeof(int)); // Cardinality estimation
         threadData[i].latencies = (int*) calloc(2000000,sizeof(int));
 
         // #### Initialize Space-Saving instance ####
