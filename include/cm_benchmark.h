@@ -74,7 +74,7 @@
 #endif
 
 #define PREINSERT 1
-#define LATENCY 0
+#define LATENCY 1
 
 int QUERRY_RATE;
 int TOPK_QUERY_RATE;

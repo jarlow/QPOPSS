@@ -4,6 +4,8 @@
 
 #include <sys/time.h>
 #include <stdlib.h>
+#include "getticks.h"
+
 
 struct timeval global_timer_start,global_timer_stop;
 

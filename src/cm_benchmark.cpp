@@ -1,28 +1,24 @@
 #include "relation.h"
 #include "xis.h"
 #include "sketches.h"
+#include "filter.h"
+#include "prng.h"
+
 #include "utils.h"
 #include "thread_utils.h"
-#include "filter.h"
+#include "hash_utils.h"
+#include "query_utils.h"
 #include "getticks.h"
-#include "lossycount.h"
-#include "LossyCountMinSketch.h"
-#include "prng.h"
-#include "owfrequent.h"
-#include "buffer.h"
-#include "apache-data-sketches/frequent_items_sketch.hpp"
 
+#include "prif.h" // PRIF implementation
+#include "topkapi.h" // Topkapi implementation
+#include "qpopss.h" // QPopSS implementation
+#include "apache-data-sketches/frequent_items_sketch.hpp" // Apache Data Sketches implementation
 
 #include <unistd.h>
-#include <cstring>
-#include <cmath>
-#include <map>
+#include <vector>
 #include <unordered_map>
 #include <set>
-#include <fstream>
-#include <iterator>
-#include <sstream>
-#include <iomanip>
 
 #define NO_SQUASHING 0
 #define HASHA 151261303
@@ -38,122 +34,7 @@ float PHI;
 int MAX_FILTER_SUM,MAX_FILTER_UNIQUES;
 int tuples_no,rows_no,buckets_no;
 
-
-/* TOPKAPI */
-
-void allocate_sketch( LossySketch* sketch,
-                      const unsigned range)
-{
-  int i;
-  (*sketch)._b           = range;
-  (*sketch).identity     = (uint32_t*) malloc(range*sizeof(uint32_t));
-  (*sketch).lossyCount   = (int* ) malloc(range*sizeof(int));
-	if ( (*sketch).identity == NULL ||
-			 (*sketch).lossyCount == NULL )
-	{
-		fprintf(stderr, "LossySketch allocation error!\n");
-		exit(EXIT_FAILURE);
-	}
-  /* set counts to -1 to indicate empty counter */
-  for (i = 0; i < range; ++i){
-    (*sketch).lossyCount[i] = -1;
-    (*sketch).identity[i] = -1;
-  }
-}
-
-/* Frees a row of topkapi sketch data structure */
-void deallocate_sketch( LossySketch* sketch )
-{
-  free((*sketch).identity);
-  free((*sketch).lossyCount);
-}
-
-/* TOPKAPI */ 
-
-
-unsigned short precomputedMods[512];
-
-static inline int findOwner(unsigned int key){
-    return precomputedMods[key & 511];
-}
 volatile int threadsFinished = 0;
-
-unsigned int Random_Generate()
-{
-    unsigned int x = rand();
-    unsigned int h = rand();
-
-    return x ^ ((h & 1) << 31);
-}
-
-
-static inline unsigned long* seed_rand()
-{
-    unsigned long* seeds;
-    /* seeds = (unsigned long*) ssalloc_aligned(64, 64); */
-    //seeds = (unsigned long*) memalign(64, 64);
-    seeds = (unsigned long*) calloc(3,64);
-    seeds[0] = getticks() % 123456789;
-    seeds[1] = getticks() % 362436069;
-    seeds[2] = getticks() % 521288629;
-    return seeds;
-}
-
-#define my_random xorshf96
-
-static inline unsigned long
-xorshf96(unsigned long* x, unsigned long* y, unsigned long* z)  //period 2^96-1
-{
-    unsigned long t;
-    (*x) ^= (*x) << 16;
-    (*x) ^= (*x) >> 5;
-    (*x) ^= (*x) << 1;
-
-    t = *x;
-    (*x) = *y;
-    (*y) = *z;
-    (*z) = t ^ (*x) ^ (*y);
-
-  return *z;
-}
-int shouldQuery(threadDataStruct *ltd){
-    return (my_random(&(ltd->seeds[0]), &(ltd->seeds[1]), &(ltd->seeds[2])) % 1000);
-}
-int shouldTopKQuery(threadDataStruct *ltd){
-    return ((my_random(&(ltd->seeds[0]), &(ltd->seeds[2]), &(ltd->seeds[1]))) % 1000000);
-}
-
-void serveDelegatedInserts(threadDataStruct * localThreadData){
-    // Check if there is a full filter that needs emptying
-    if (!localThreadData->listOfFullFilters) return;
-    //take trylock or return from this function
-    if(pthread_mutex_trylock(&localThreadData->mutex)){
-        return;
-    }
-    while (localThreadData->listOfFullFilters){
-        // Select first filter in queue
-        FilterStruct* filter = pop(&(localThreadData->listOfFullFilters));
-
-        // parse filter and add each element to your own filter
-        for (int i=0; i<filter->filterCount;i++){
-            uint32_t count = filter->filter_count[i];
-            uint32_t key = filter->filter_id[i];
-            #if SPACESAVING
-            LCL_Update(localThreadData->ss,key,count);
-            #else // If vanilla Delegation Sketch is used
-            insertFilterNoWriteBack(localThreadData, key, count);
-            #endif
-            // flush each element
-            filter->filter_id[i] = -1;
-            filter->filter_count[i] = 0;
-        }
-        // mark filter as empty
-        filter->filterCount = 0;
-        filter->filterFull = false;
-    }
-    // release mutex lock
-    pthread_mutex_unlock(&localThreadData->mutex);
-}
 
 unsigned int queryAllRelatedDataStructuresAndUpdatePendigQueries(threadDataStruct * localThreadData, unsigned int key){
     unsigned int countInFilter = queryFilter(key, &(localThreadData->Filter));
@@ -207,37 +88,6 @@ static inline void insertSingleSS(threadDataStruct * localThreadData, unsigned i
 	return;
 }
 
-static inline void delegateInsert(threadDataStruct * localThreadData, unsigned int key, unsigned int increment, int owner){
-    FilterStruct* filter = &(filterMatrix[localThreadData->tid * (numberOfThreads) + owner]);
-
-    InsertInDelegatingFilterWithListAndMaxSum(filter, key);
-    localThreadData->sumcounter++;
-    localThreadData->substreamSize++;
-
-    
-	// If the current filter contains max uniques, or if the number of inserts since last window is equal to max, flush all filters 
-    if (filter->filterCount == MAX_FILTER_UNIQUES || localThreadData->sumcounter == MAX_FILTER_SUM ){
-        // push all filters to the other threads 
-        for (int i=0;i< numberOfThreads;i++){
-            filter = &(filterMatrix[localThreadData->tid * (numberOfThreads) + i]);
-            if ( filter->filterCount > 0){
-                threadDataStruct * owningThread = &(threadData[i]);
-                filter->filterFull = true;
-                push(filter, &(owningThread->listOfFullFilters));
-            }
-        }
-
-        // Make sure all filters are empty before continuing
-        for (int i=0;i< numberOfThreads;i++){
-            filter = &(filterMatrix[localThreadData->tid * (numberOfThreads) + i]);
-            while(filter->filterFull && startBenchmark){
-                serveDelegatedInserts(localThreadData);
-            }
-        }
-        localThreadData->sumcounter=0;     
-    }
-    
-}
 
 unsigned int delegateQuery(threadDataStruct * localThreadData, unsigned int key){
     int owner = findOwner(key);
@@ -296,12 +146,7 @@ double querry(threadDataStruct * localThreadData, unsigned int key){
 
 
 void insert(threadDataStruct * localThreadData, unsigned int key, unsigned int increment){
-#if TOPKAPI
-    //localThreadData->topkapi_instance->Update_Sketch(key,increment);
-    for (int i = 0; i < rows_no; ++i){
-        update_sketch( &(localThreadData->th_local_sketch[localThreadData->tid * rows_no + i]), key, localThreadData->randoms,i );
-    }
-#elif REMOTE_INSERTS
+#if REMOTE_INSERTS
     int owner = findOwner(key);
     localThreadData->sketchArray[owner]->Update_Sketch_Atomics(key, increment);
 #elif HYBRID
@@ -314,227 +159,12 @@ void insert(threadDataStruct * localThreadData, unsigned int key, unsigned int i
     int owner = findOwner(key); 
     localThreadData->sketchArray[owner]->enqueueRequest(key);
     localThreadData->theSketch->serveAllRequests(); //Serve any requests you can find in your own queue
+    // Frequent Elements below
+#elif TOPKAPI
+    updateTopkapi(localThreadData, key, increment, rows_no);
 #elif PRIF
-    OWF_Update(localThreadData->owf,key, increment);
+    prifUpdate(localThreadData, key, increment);
 #endif
-}
-
-bool sortbysecdesc(const pair<uint32_t,uint32_t> &a,
-                   const pair<uint32_t,uint32_t> &b)
-{
-       return a.second>b.second;
-}
-
-void topkapi_query_merge(threadDataStruct *localThreadData, int range,int num_topk){
-        num_topk=std::max(1,num_topk);
-        localThreadData->lasttopk.clear();
-        LossySketch* th_local_sketch = localThreadData->th_local_sketch;
-        LossySketch*  merged = (LossySketch* ) malloc(rows_no*sizeof(LossySketch));
-        for (int th_i = 0; th_i < rows_no; ++th_i){
-            allocate_sketch( &merged[th_i], range);
-        }
-        for (int i = 0; i < rows_no; ++i){
-            local_merge_sketch(merged, th_local_sketch, numberOfThreads, rows_no, i);
-        }
-        std::map<int,int> topk_words;
-        std::map<int,int>::reverse_iterator rit;
-        int num_heavy_hitter = 0;
-        int count;
-        uint32_t elem;
-        int i,j;
-        int id;
-        int frac_epsilon=num_topk*10;
-        int* is_heavy_hitter = (int* )malloc(range*sizeof(int));
-        int threshold = (int) ((range/num_topk) - 
-                            (range/frac_epsilon));
-
-        for (i = 0; i < range; ++i){
-            is_heavy_hitter[i] = false;
-            for (j = 0; j < rows_no; ++j){
-                if ( j == 0){
-                    elem = merged->identity[i];
-                    count = merged->lossyCount[i];
-                    if (count >= threshold)
-                    {
-                        is_heavy_hitter[i] = true;
-                    }
-                } 
-                else {
-                    id = threadData->randoms[j]->element(elem);
-                if ((merged[j].identity[id] !=  elem) )
-                {
-                    continue;
-                } else if (merged[j].lossyCount[id] >= threshold)
-                {
-                    is_heavy_hitter[i] = true;
-                }
-                if (merged[j].lossyCount[id] > count)
-                    count = merged[j].lossyCount[id];
-                }
-            }
-            merged->lossyCount[i] = count;
-            }
-
-            for (i = 0; i < range; ++i)
-            {
-                if (is_heavy_hitter[i])
-                {
-                    num_heavy_hitter ++;
-                    topk_words.insert( std::pair<int,int>(merged->lossyCount[i], i) );
-                }
-            }
-
-            for (i = 0, rit = topk_words.rbegin(); 
-                (i < num_topk) && (rit != topk_words.rend()); 
-                    ++i, ++rit)
-            {
-                j = rit->second;
-                localThreadData->lasttopk.push_back(make_pair(merged->identity[j],rit->first));
-            }
-        /* free memories */
-        for (int th_i = 0; th_i < rows_no; ++th_i){
-            deallocate_sketch( &merged[th_i]);
-        }
-        free(merged);
-        free(is_heavy_hitter);
-}
-
-void topkapi_query(threadDataStruct * localThreadData,int K,float phi,vector<pair<uint32_t,uint32_t>>* v ){
-    v->clear();
-    std::unordered_map<uint32_t,uint32_t> res;
-    for (int t=0;t < numberOfThreads;t++){
-        threadData[t].topkapi_instance->Query_Local_Sketch(&res);
-    }
-    for (auto elem : res){
-        v->push_back(elem);
-    }
-    std::sort(v->data(), v->data()+v->size(), sortbysecdesc);
-
-    /* slice away elements that are not part of the top k */
-    v->erase(v->end()-(v->size()-K),v->end());
-}
-
-void addDelegationFilterCounts(int tid, vector<pair<uint32_t,uint32_t>>::iterator &it, const vector<pair<uint32_t,uint32_t>>::const_iterator &end){
-    auto start = it;
-    for (int i=0; i<numberOfThreads; i++){
-        FilterStruct* filter = &(filterMatrix[i * (numberOfThreads) + tid]);
-        int advancements=0;
-        while (it != end){
-            for (int k=0; k<filter->filterCount; k++){
-                if (it->first == filter->filter_id[k]){ // if matching id, add count to the result. 
-                    it->second += filter->filter_count[k];
-                    //printf("Found match for %d, adding %d to count\n",it->first,filter->filter_count[k]);
-                }
-            }
-            ++it;
-        }
-        it = start;
-    };
-}
-
-// Performs a frequent elements query 
-void FEquery(threadDataStruct * localThreadData,float phi,vector<pair<uint32_t,uint32_t>>* result){
-    int numFETotal=0;
-    LCL_type* local_spacesaving;
-    result->resize(0);
-    uint64_t streamsize=0;
-
-    // If single threaded just extract frequent elements from the local Space-Saving instance
-    #if SINGLE
-    streamsize = localThreadData->substreamSize;
-    local_spacesaving = localThreadData->ss;
-    LCL_Output(local_spacesaving,streamsize*phi,result);
-
-    // If Delegation Space-Saving then extract local frequent elements at all threads
-    #else
-
-    // Estimate stream size across all threads
-    for (int j=0;j<numberOfThreads;j++){
-        streamsize += threadData[j].substreamSize;
-    }
-
-    // Get all local frequent elements at the threads
-    bool bm[numberOfThreads]={0};
-    int num_complete=0;
-    int i=0;
-    while (num_complete < numberOfThreads){
-        if (!bm[i]){
-            if(pthread_mutex_trylock(&threadData[i].mutex)){
-                // try next
-                i=precomputedMods[i+1];
-                continue;
-            }
-            local_spacesaving=threadData[i].ss;
-            int numFE = LCL_Output(local_spacesaving,streamsize*phi,result);
-            pthread_mutex_unlock(&threadData[i].mutex);
-            
-            auto it = result->begin();
-            advance(it,numFETotal);
-            addDelegationFilterCounts(i,it,result->end());
-            numFETotal += numFE;
-            
-            bm[i]=true;
-            num_complete++;
-            serveDelegatedInserts(localThreadData);
-        }
-        i=precomputedMods[i+1];
-    }
-    #endif
-
-    // Sort output
-    std::sort(result->data(), result->data()+result->size(),sortbysecdesc);
-}
-
-void prifMergeThreadWorkPreins(threadDataStruct *localThreadData){
-    std::pair<uint32_t,uint32_t> res;
-    while (!startBenchmark)
-    {
-    }
-    while (startBenchmark)
-    {
-        getitem(&res,&startBenchmark); // Get a frequency increment from the shared buffer
-        OWF_Update_Merging_Thread(localThreadData->owf,res.first, res.second); // update merging owf with the frequency increment
-    }
-    int c =0;
-    while (buffercontains(&res)){ // empty buffer
-        c++;
-        OWF_Update_Merging_Thread(localThreadData->owf,res.first, res.second); // update merging owf with the frequency increment
-    }
-    printf("Emptying buffer, entries %d\n",c);
-}
-
-void prifQuery(threadDataStruct *localThreadData){
-    uint32_t streamsize = 0;
-    for (int i=0;i<numberOfThreads;i++){
-        streamsize+=threadData[i].owf->N_i;
-    }
-    OWF_Output(localThreadData->owf,streamsize*(PHI-(1/(float)COUNTING_PARAM)),localThreadData->lasttopk);
-    std::sort(localThreadData->lasttopk.data(), localThreadData->lasttopk.data()+localThreadData->lasttopk.size(),sortbysecdesc);
-}
-
-void prifMergeThreadWork(threadDataStruct *localThreadData){
-    int numTopKQueries = 0;
-    std::pair<uint32_t,uint32_t> res;
-    while (!startBenchmark)
-    {
-    }
-    while (startBenchmark)
-    {
-        getitem(&res,&startBenchmark); // Get a frequency increment from the shared buffer
-        OWF_Update_Merging_Thread(localThreadData->owf,res.first, res.second); // update merging owf with the frequency increment
-        if (shouldTopKQuery(localThreadData) < TOPK_QUERY_RATE)
-        {   
-            prifQuery(localThreadData);
-            numTopKQueries++;
-        }
-    }
-    int c = 0;
-    while (buffercontains(&res)){ // empty buffer
-        c++;
-        OWF_Update_Merging_Thread(localThreadData->owf,res.first, res.second); // update merging owf with the frequency increment
-    }
-    printf("Emptying buffer, entries %d\n",c);
-    localThreadData->numTopKQueries=numTopKQueries;
 }
 
 void threadWork(threadDataStruct *localThreadData)
@@ -563,9 +193,9 @@ void threadWork(threadDataStruct *localThreadData)
                 #endif
 
                 #if SPACESAVING
-                FEquery(localThreadData,PHI,&localThreadData->lasttopk);
+                QpopssQuery(threadData,localThreadData->tid,PHI,&localThreadData->lasttopk, filterMatrix);
                 #elif TOPKAPI
-                topkapi_query_merge(localThreadData,buckets_no,K);
+                topkapi_query_merge(localThreadData,buckets_no,K,rows_no,numberOfThreads);
                 #endif
 
                 #if LATENCY
@@ -580,7 +210,7 @@ void threadWork(threadDataStruct *localThreadData)
             serveDelegatedInserts(localThreadData);
             // int old_owner = key - numberOfThreads * libdivide::libdivide_s32_do((uint32_t)key, fastDivHandle);
             int owner = findOwner(key);
-            delegateInsert(localThreadData, key, 1, owner);
+            delegateInsert(localThreadData, key, 1, owner, filterMatrix, MAX_FILTER_SUM);
             #elif SINGLE
 			insertSingleSS(localThreadData,key);
             #endif
@@ -607,49 +237,14 @@ void threadWork(threadDataStruct *localThreadData)
     localThreadData->numOps = numOps;
 }
 
+/*! \brief Preinserts the data into the sketch. 
+ * 
+ *  This function is used to preinsert the data into the sketch. 
+ *  It is used as a warm-up phase for the benchmark, and is not timed. 
+ *  \param localThreadData The thread data structure of the current thread.
+*/
 
-void * threadEntryPoint(void * threadArgs){
-    int tid = *((int *) threadArgs);
-    threadDataStruct * localThreadData = &(threadData[tid]);
-    #if 0 == 1
-    //ITHACA: fill first NUMA node first (even numbers)
-    int thread_id = (tid%36)*2 + tid/36;
-    setaffinity_oncpu(thread_id);
-    #elif 2 == 2
-    setaffinity_oncpu(tid);
-    #else
-    setaffinity_oncpu(14*(tid%2)+(tid/2)%14);
-    #endif
-    int oneLessWorkerThread = 0;
-    #if PRIF 
-    oneLessWorkerThread = 1;
-    #endif
-    int threadWorkSize = tuples_no /  (numberOfThreads - oneLessWorkerThread);
-    localThreadData->startIndex = tid * threadWorkSize;
-    localThreadData->endIndex =  localThreadData->startIndex + threadWorkSize; //Stop before you reach that index
-    //The last thread gets the rest if tuples_no is not devisible by numberOfThreads
-    //(it only matters for accuracy tests)
-    if (tid == (numberOfThreads - 1 - oneLessWorkerThread)){
-        localThreadData->endIndex = tuples_no;
-    }
-    
-
-    localThreadData->pendingQueriesKeys =  (int *)calloc(numberOfThreads, sizeof(int));
-    localThreadData->pendingQueriesCounts =  (unsigned int *)calloc(numberOfThreads, sizeof(unsigned int));
-    localThreadData->pendingQueriesFlags =  (volatile int *)calloc(numberOfThreads, sizeof(volatile int));
-    localThreadData->pendingTopKQueriesFlags = (volatile float *)calloc(numberOfThreads, sizeof(volatile int));
-    for(int i=0; i<numberOfThreads; i++){
-        localThreadData->pendingQueriesKeys[i] = -1;
-        localThreadData->pendingTopKQueriesFlags[i] = 0.0;
-    }
-
-    localThreadData->insertsPending = 0;
-    localThreadData->queriesPending = 0;
-    localThreadData->listOfFullFilters = NULL;
-    localThreadData->seeds = seed_rand();
-    // Insert the data once, here we let each thread process the whole dataset,
-    // and let the threads cherry-pick the elements that they own.
-    #if PREINSERT && !ACCURACY
+void preinsert(threadDataStruct * localThreadData){
     int start,end;
     #if TOPKAPI || PRIF
     start=localThreadData->startIndex;
@@ -694,13 +289,60 @@ void * threadEntryPoint(void * threadArgs){
         printf("Done with preinsert\n");
     }
     #endif
+}
+
+
+void * threadEntryPoint(void * threadArgs){
+    int tid = *((int *) threadArgs);
+    threadDataStruct * localThreadData = &(threadData[tid]);
+    #if 0 == 1
+    //ITHACA: fill first NUMA node first (even numbers)
+    int thread_id = (tid%36)*2 + tid/36;
+    setaffinity_oncpu(thread_id);
+    #elif 2 == 2
+    setaffinity_oncpu(tid);
+    #else
+    setaffinity_oncpu(14*(tid%2)+(tid/2)%14);
+    #endif
+    int oneLessWorkerThread = 0;
+    #if PRIF 
+    oneLessWorkerThread = 1;
+    #endif
+    int threadWorkSize = tuples_no /  (numberOfThreads - oneLessWorkerThread);
+    localThreadData->startIndex = tid * threadWorkSize;
+    localThreadData->endIndex =  localThreadData->startIndex + threadWorkSize; //Stop before you reach that index
+    //The last thread gets the rest if tuples_no is not devisible by numberOfThreads
+    //(it only matters for accuracy tests)
+    if (tid == (numberOfThreads - 1 - oneLessWorkerThread)){
+        localThreadData->endIndex = tuples_no;
+    }
+    
+
+    localThreadData->pendingQueriesKeys =  (int *)calloc(numberOfThreads, sizeof(int));
+    localThreadData->pendingQueriesCounts =  (unsigned int *)calloc(numberOfThreads, sizeof(unsigned int));
+    localThreadData->pendingQueriesFlags =  (volatile int *)calloc(numberOfThreads, sizeof(volatile int));
+    localThreadData->pendingTopKQueriesFlags = (volatile float *)calloc(numberOfThreads, sizeof(volatile int));
+    for(int i=0; i<numberOfThreads; i++){
+        localThreadData->pendingQueriesKeys[i] = -1;
+        localThreadData->pendingTopKQueriesFlags[i] = 0.0;
+    }
+
+    localThreadData->insertsPending = 0;
+    localThreadData->queriesPending = 0;
+    localThreadData->listOfFullFilters = NULL;
+    localThreadData->seeds = seed_rand();
+
+    // If we are using PREINSERT, then the elements are inserted once before the benchmark starts, not compatible with accuracy experiments
+    #if PREINSERT && !ACCURACY
+    preinsert(localThreadData);
     #endif
 
+    // cross barriers, starting the benchmark when all threads are ready
     barrier_cross(&barrier_global);
     barrier_cross(&barrier_started);
     #if PRIF
     if (tid == numberOfThreads-1){
-        prifMergeThreadWork(localThreadData);
+        prifMergeThreadWork(localThreadData, numberOfThreads, PHI);
     }
     else{
         threadWork(localThreadData);
@@ -928,12 +570,7 @@ int main(int argc, char **argv)
     r1->tuples = input_data;
     tuples_no = r1->tuples_no;
 
-    int c = 0;
-    for (int i=0; i<512; i++){
-        precomputedMods[i] = c;
-        c++;
-        c = c % (numberOfThreads);
-    }  
+    precomputeMods(numberOfThreads);
     unsigned int I1, I2;
 
     //generate the pseudo-random numbers for CM sketches; use CW2B
@@ -952,7 +589,7 @@ int main(int argc, char **argv)
     LossySketch *  th_local_sketch = (LossySketch* ) malloc(rows_no*numberOfThreads*
                                         sizeof(LossySketch));
 
-
+    #if TOPKAPI
     for (int i=0; i<numberOfThreads; i++){
         cmArray[i] = new Count_Min_Sketch(buckets_no, rows_no, cm_cw2b);
         cmArray[i]->SetGlobalSketch(globalSketch);
@@ -960,6 +597,7 @@ int main(int argc, char **argv)
             allocate_sketch( &th_local_sketch[i * rows_no + th_i], buckets_no);
         }
     }
+    #endif
 
     filterMatrix = (FilterStruct *) calloc((numberOfThreads)*(numberOfThreads), sizeof(FilterStruct));
     for (int thread = 0; thread< (numberOfThreads)*(numberOfThreads); thread++){
@@ -998,9 +636,9 @@ int main(int argc, char **argv)
     #if ACCURACY 
     // Perform a query at the end of the stream
     #if SPACESAVING
-    FEquery(&(threadData[numberOfThreads-1]),PHI,&threadData[numberOfThreads-1].lasttopk);
+    QpopssQuery(threadData, numberOfThreads-1, PHI,&threadData[numberOfThreads-1].lasttopk, filterMatrix);
     #elif TOPKAPI
-    topkapi_query_merge(&threadData[numberOfThreads-1],buckets_no,num_topk);
+    topkapi_query_merge(&threadData[numberOfThreads-1],buckets_no,num_topk,rows_no,numberOfThreads);
     #elif PRIF
     prifQuery(&(threadData[numberOfThreads-1]));
     #endif
@@ -1039,7 +677,7 @@ int main(int argc, char **argv)
         average=0.0;
     }
     tot_avg = tot_avg/(double)numberOfThreads;
-    printf("Average latency: %lf\n",tot_avg);
+    printf("Average latency: %lf us\n",tot_avg);
     #endif
 
 
