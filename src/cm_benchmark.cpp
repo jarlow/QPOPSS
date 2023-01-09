@@ -494,7 +494,10 @@ void saveMemoryConsumption(threadDataStruct* localThreadData, int numberOfThread
     numcounters*=(numberOfThreads);
     memorysize*=(numberOfThreads);
     // Incl deleg filters and counters
-    memorysize+= (sizeof(FilterStruct) * (numberOfThreads)*(numberOfThreads)) +  (sizeof(uint32_t) * MAX_FILTER_UNIQUES * 2 *(numberOfThreads)*(numberOfThreads)) + sizeof(uint64_t)*numberOfThreads + sizeof(atomic_flag)*(numberOfThreads)  ; 
+    memorysize+=(sizeof(FilterStruct) * (numberOfThreads)*(numberOfThreads)) +  
+                    (sizeof(uint32_t) * MAX_FILTER_UNIQUES * 2 *(numberOfThreads)*(numberOfThreads)) + 
+                    sizeof(uint64_t)*numberOfThreads + 
+                    sizeof(atomic_flag)*(numberOfThreads); 
     // T^2 filters + size of keys and values arrays +  T * counters + flags
     #endif
     #endif
