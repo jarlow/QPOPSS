@@ -589,15 +589,15 @@ int main(int argc, char **argv)
     LossySketch *  th_local_sketch = (LossySketch* ) malloc(rows_no*numberOfThreads*
                                         sizeof(LossySketch));
 
-    #if TOPKAPI
     for (int i=0; i<numberOfThreads; i++){
         cmArray[i] = new Count_Min_Sketch(buckets_no, rows_no, cm_cw2b);
         cmArray[i]->SetGlobalSketch(globalSketch);
+        #if TOPKAPI
         for (int th_i = 0; th_i < rows_no; ++th_i){
             allocate_sketch( &th_local_sketch[i * rows_no + th_i], buckets_no);
         }
-    }
     #endif
+    }
 
     filterMatrix = (FilterStruct *) calloc((numberOfThreads)*(numberOfThreads), sizeof(FilterStruct));
     for (int thread = 0; thread< (numberOfThreads)*(numberOfThreads); thread++){
