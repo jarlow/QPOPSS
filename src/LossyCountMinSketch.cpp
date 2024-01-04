@@ -41,7 +41,8 @@ void update_sketch( LossySketch* _sketch,
  * Note: it is used only when multi-threaded
  * execution happens
  */
-void local_merge_sketch( LossySketch*   LCMS,
+void local_merge_sketch(LossySketch* final, 
+                        LossySketch*   LCMS,
                          const unsigned num_local_copies,
                          const unsigned num_hash_func,
                          const unsigned hash_func_index )
@@ -106,6 +107,12 @@ void local_merge_sketch( LossySketch*   LCMS,
     {
         word[0]=word[k];
     }
-    LCMS[hash_func_index].lossyCount[i] = max_count;
+    final[hash_func_index].lossyCount[i] = max_count;
+    final[hash_func_index].identity[i] = current_word;
   }
+}
+
+int topk_size(LossySketch * _sketch,int num_rows)
+{ // return the size of the data structure in bytes
+	return num_rows * (sizeof(LossySketch) + (_sketch->_b * sizeof(uint32_t)) * 2);
 }

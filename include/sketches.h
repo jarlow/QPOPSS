@@ -193,11 +193,6 @@ class alignas(64) Count_Min_Sketch : public Sketch
 class alignas(64) Frequent_CM_Sketch : public Sketch
 {
     protected:
-    //unsigned int buckets_no;
-    //unsigned int rows_no;
-
-    //std::pair<uint32_t,uint32_t> *sketch_elem;
-
     Xi **xi_bucket;
 
 

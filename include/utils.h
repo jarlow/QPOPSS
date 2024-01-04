@@ -1,8 +1,11 @@
+#pragma once
 #ifndef UTILS_H
 #define UTILS_H
 
 #include <sys/time.h>
 #include <stdlib.h>
+#include "getticks.h"
+
 
 struct timeval global_timer_start,global_timer_stop;
 

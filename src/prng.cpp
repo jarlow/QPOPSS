@@ -1,8 +1,8 @@
 #include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include "prng.h"
 #include "rand48.h"
+
+#include <assert.h>
 
 #define PI 3.141592653589793
 
@@ -109,11 +109,12 @@ long hash31(int64_t a, int64_t b, int64_t x)
 // 2^31 - 1 = 2147483647
 
   //  result = ((int64_t) a)*((int64_t) x)+((int64_t) b);
-  //result=(a * x) + b;
-  //result = ((result >> HL) + result) & MOD;
-  //lresult=(long) result;
-  //return lresult;
-  return((a * x) + b) & MOD;
+  result=(a * x) + b;
+  result = ((result >> HL) + result) & MOD;
+  lresult=(long) result;
+
+  return(lresult);
+  //return((a * x) + b) & MOD;
 }
 
 long fourwise(int64_t a, int64_t b, int64_t c, int64_t d, int64_t x)

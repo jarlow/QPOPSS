@@ -4,6 +4,11 @@
 #include "thread_data.h"
 
 //define preprocessor flags that are not set in the Makefile
+
+#ifndef PRIF
+#define PRIF 0
+#endif
+
 #ifndef SHARED_SKETCH
 #define SHARED_SKETCH 0
 #endif
@@ -56,10 +61,6 @@
 #define SINGLE 0
 #endif
 
-#ifndef DEBUG
-#define DEBUG 0
-#endif
-
 #ifndef ACCURACY
 #define ACCURACY 0
 #endif
@@ -72,12 +73,15 @@
 #define ITHACA 0
 #endif
 
-#define LATENCY 1 
+#define PREINSERT 1
+#define LATENCY 1
 
 int QUERRY_RATE;
 int TOPK_QUERY_RATE;
 int DURATION;
 int COUNTING_PARAM;
+double BETA;
+
 void * threadEntryPoint(void * threadArgs);
 void insert(threadDataStruct * localThreadData, unsigned int key, unsigned int increment);
 #endif

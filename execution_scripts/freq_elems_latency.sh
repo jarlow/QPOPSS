@@ -18,15 +18,14 @@ regex="SKEW:[[:space:]]*([0-9]\.{0,1}[1-9]{0,2})[[:space:]]*NUM TOPK:[[:space:]]
 ### Synthetic stream parameters
 universe_size=10000000
 stream_size=10000000
-num_seconds=10
+num_seconds=8
 N=${stream_size}
 rows=4
 new_columns=100
 queries=0
 
 ### Which experiments to run?
-vsdfsdfu=false
-vs=false
+vs=true
 vt=true
 
 ### Sources of data
@@ -80,54 +79,12 @@ num_counters_topkapi(){
     echo $res
 }
 
-
-### Investigate effects of df_u and df_s over skew ###
-queries="0"
-MAX_FILTER_SUMS="100 1000 10000 100000"
-MAX_FILTER_UNIQUES="16 32 64 128"
-skew_rates="0.5 0.75 1 1.25 1.5 1.75 2 2.25 2.5 2.75 3"
-phis="0.0001"
-topkqueriesS="100"
-versions="cm_spacesaving_deleg_maxheap"
-echo "------ Vary Skew, df_s and df_u ------"
-if [ "$vsdfsdfu" = true ] ; then
-    for version in $versions
-    do
-        if [[ "$version" == *"single"* ]]; then 
-            num_thr="1"
-        else
-            num_thr="24"
-        fi
-        echo $version
-        for MAX_FILTER_UNIQUE in $MAX_FILTER_UNIQUES
-        do
-            for MAX_FILTER_SUM in $MAX_FILTER_SUMS
-            do
-                for topkrates in $topkqueriesS
-                do
-                    for phi in $phis
-                    do
-                        for skew in $skew_rates
-                        do
-                            for _ in $num_reps
-                            do
-                                echo "$universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topkrates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUE $filepath"
-                                output=$(./bin/$version.out $universe_size $stream_size $new_columns $rows 1 "$skew" 0 1 $num_thr $queries $num_seconds "$calgo_param" $topkrates $K $phi "$MAX_FILTER_SUM" "$MAX_FILTER_UNIQUE") 
-                                echo "$output" | grep -oP 'Total processing throughput [+-]?[0-9]+([.][0-9]+)?+' -a --text >> logs/skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_dfsdfu_throughput.log
-                            done
-                        done                     
-                    done
-                done
-            done
-        done
-    done
-fi
 MAX_FILTER_UNIQUES="16"
 MAX_FILTER_SUMS="1000"
-phis="0.001 0.0002 0.0001"
+phis="0.0001"
 #topkqueriesS="0 100 1000"
-topkqueriesS="200"
-versions="cm_spacesaving_deleg_maxheap cm_topkapi cm_spacesaving_single_maxheap" #"cm_spacesaving_deleg_maxheap cm_spacesaving_single_maxheap cm_topkapi"
+topkqueriesS="100"
+versions="cm_spacesaving_deleg_maxheap cm_spacesaving_deleg" #"cm_spacesaving_deleg_maxheap cm_spacesaving_single_maxheap cm_topkapi"
 ## Vary skew with qr and phi
 echo "------ Vary skew, query rate and phi------"
 if [ "$vs" = true ] ; then
@@ -184,8 +141,8 @@ if [ "$vs" = true ] ; then
                                     echo "$stream_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topkrates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filepath"
                                     #new_columns=$(((buckets*rows*4 - num_thr*64)/(rows*4))) 
                                     output=$(./bin/"$version".out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds "$calgo_param" "$topkrates" $K "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filepath) 
-                                    echo "$output" | grep -oP 'Total processing throughput [+-]?[0-9]+([.][0-9]+)?+' -a --text >> logs/skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_phiqr"${dsname}"_throughput.log
                                     echo "$output"
+                                    echo "$output" | grep -oP 'Average latency: (\d+.\d+)' -a --text >> logs/vs_"${version}"_"${num_thr}"_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_phiqr"${dsname}"_latency.log
                                     if [[ "$version" == *"deleg"* ]]; then
                                         if [[ "$output" =~ $regex ]]; then
                                             if [[ "${BASH_REMATCH[4]}" != *"flows"* ]]; then 
@@ -209,10 +166,10 @@ fi
 MAX_FILTER_UNIQUES="16"
 MAX_FILTER_SUMS="1000"
 
-phis="0.001 0.0002 0.0001"
+phis="0.0001"
 #topkqueriesS="0 100 1000"
 topkqueriesS="100"
-versions="cm_spacesaving_deleg" #"cm_spacesaving_deleg_maxheap cm_spacesaving_single_maxheap cm_topkapi"
+versions="cm_spacesaving_deleg_maxheap cm_spacesaving_deleg" #"cm_spacesaving_deleg_maxheap cm_spacesaving_single_maxheap cm_topkapi"
 threads="4 8 12 16 20 24"
 ## Vary threads with skew 1.25
 echo "------ Vary Threads, query rate and phi------"
@@ -270,8 +227,8 @@ if [ "$vt" = true ] ; then
                                     #new_columns=$(((buckets*rows*4 - num_thr*64)/(rows*4))) 
                                     echo "$stream_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topkrates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filepath"
                                     output=$(./bin/"$version".out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 "$num_thr" $queries $num_seconds "$calgo_param" "$topkrates" $K "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filepath) 
-                                    echo "$output" | grep -oP 'Total processing throughput [+-]?[0-9]+([.][0-9]+)?+' -a --text >> logs/threads_"${version}"_"${num_thr}"_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_phiqr"${dsname}"_throughput.log
                                     echo "$output" 
+                                    echo "$output" | grep -oP 'Average latency: (\d+.\d+)' -a --text >> logs/threads_"${version}"_"${num_thr}"_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_phiqr"${dsname}"_latency.log
                                     if [[ "$version" == *"deleg"* ]]; then
                                         if [[ "$output" =~ $regex ]]; then
                                             if [[ "${BASH_REMATCH[4]}" != *"flows"* ]]; then 

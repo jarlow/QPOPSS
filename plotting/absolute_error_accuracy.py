@@ -36,8 +36,8 @@ for z in zipf:
     axx.indicate_inset_zoom(ax2, edgecolor="black")
     for j, name in enumerate(names):
         n=name.split(' ')
-        #globname="logs/var_skew*" + n[0] + "_" + n[1] + "_accuracy_*_" + str(z)+"_*"+str(m)+"_"+str(u)+"_"+str(streamlen)+"_varN_histogram.log"
-        globname="logs/topk_results*"
+        globname="logs/var_skew*" + n[0] + "_" + n[1] + "*_accuracy_*_" + str(z)+"_*"+str(m)+"_"+str(u)+"_"+str(streamlen)+"_varN_histogram.log"
+        #globname="logs/topk_results*"
         fname = glob.glob(globname)[0]
         res, N, PHI = parse_accuracy_histogram(fname)
         error_list = absolute_error(res)

@@ -5,6 +5,7 @@
 #include "thread_data.h"
 #include "barrier.h"
 #include "cm_benchmark.h"
+#include "buffer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,8 +13,9 @@
 
 
 void initThreadData(Count_Min_Sketch ** sketchArray, Relation * relation,int MAX_FILTER_SUM,
-                    int MAX_FILTER_UNIQUES, Frequent_CM_Sketch ** topkapi,int TOPK_QUERY_RATE, 
-                                                    int tuples_no,int numberOfThreads, LossySketch* th_local_sketch,Xi ** cm_cw2b){
+                    int MAX_FILTER_UNIQUES,int TOPK_QUERY_RATE, 
+                    int tuples_no,int numberOfThreads, 
+                    LossySketch* th_local_sketch,Xi ** cm_cw2b, double beta){
     int i;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
@@ -39,15 +41,25 @@ void initThreadData(Count_Min_Sketch ** sketchArray, Relation * relation,int MAX
         threadData[i].theGlobalSketch = globalSketch;
         threadData[i].theData = relation;
         threadData[i].elementsProcessed = 0;
-        threadData[i].buckets = (int*) calloc(BUCKETS/numberOfThreads + 1,sizeof(int)); // Cardinality estimation
-        threadData[i].latencies = (int*) malloc(num_queries*sizeof(int) + 1000*sizeof(int));
+        threadData[i].latencies = (int*) calloc(2000000,sizeof(int));
 
-        //debug
-        threadData[i].uniques=new std::unordered_set<int>;
-        // 
-        /*Initialize Space-Saving instance*/
+        // #### Initialize Space-Saving instance ####
         threadData[i].ss = LCL_Init(1/(float)COUNTING_PARAM);
+
+        // #### Topkapi local sketch ####
+        threadData[i].th_local_sketch = th_local_sketch;
+        threadData[i].randoms=cm_cw2b;
     }
+    #if PRIF
+    double alpha = 1/(double)COUNTING_PARAM;
+    for (int i = 0; i < numberOfThreads-1;i++){
+        // #### Initialize OWFrequent instance ####
+        threadData[i].owf = OWF_Init(alpha,beta);
+    }
+    threadData[numberOfThreads-1].owf = OWF_Init(alpha/((double)numberOfThreads - 1),beta);
+    bufferinit();
+    #endif
+
 
 }
 
