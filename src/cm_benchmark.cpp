@@ -376,14 +376,14 @@ void postProcessing(){
     printf("LOG: num Queries: %ld, num Inserts %ld, percentage %f num topk %ld, topk percentage %f, garbage print %f\n",sumNumQueries, (sumNumOps-sumTopKQueries), percentage, sumTopKQueries, percentagetopk, sumReturnValues);
 }
 
-void printAccuracyResults(vector<pair<uint32_t,uint32_t>>*sorted_histogram,vector<pair<uint32_t,uint32_t>>*lasttopk, uint64_t sumNumOps){
+void printAccuracyResults(vector<pair<uint32_t,uint32_t>> *sorted_histogram,vector<pair<uint32_t,uint32_t>> *lasttopk, uint64_t sumNumOps){
         // Calculate Recall, Precision and Average Relative Error
         set<uint32_t> truth;
         set<uint32_t> elems;
         std::vector<std::pair<uint32_t,uint32_t>> true_positives;
 
         for (int i = 0; i < sorted_histogram->size(); i++){
-            if (sorted_histogram->at(i).second > ceil(sumNumOps*PHI)){
+            if (sorted_histogram->at(i).second > sumNumOps*PHI){
                 truth.insert(sorted_histogram->at(i).first);
             }        
         }
@@ -531,7 +531,6 @@ int main(int argc, char **argv)
     //Histogram of data distribution:
     vector<uint32_t> *histogram = new vector<uint32_t>(MAX_HISTOGRAM_SIZE,0);
     vector<uint32_t> *input_data = new vector<uint32_t>();
-    input_data->reserve(MAX_HISTOGRAM_SIZE);
 
     if (argc==20){
         strcpy(input_file_name,argv[19]);
@@ -636,7 +635,8 @@ int main(int argc, char **argv)
     
     int num_topk=0;
     vector<pair<uint32_t,uint32_t>> sorted_histogram;
-    uint64_t streamsize=getSortedHistogram(sorted_histogram,histogram);
+    getSortedHistogram(sorted_histogram,histogram);
+    uint64_t streamsize = tuples_no;
     // Find out how many heavy hitters there are
     for (int j=0;j<sorted_histogram.size();j++){
         if (sorted_histogram[j].second < streamsize*PHI){
