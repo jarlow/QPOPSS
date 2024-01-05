@@ -430,12 +430,6 @@ void PushDownMax(LCL_type * lcl, int ptr){
 	}
 }
 
-/*void MinMaxHeapPushDown(LCL_type * lcl, int ptr){
-	// node level is ptr mod 2, even level is min, odd is max
-	((31-__builtin_clz(ptr)) % 2) ? PushDownMax(lcl,ptr) : PushDownMin(lcl,ptr);
-}*/
-
-
 LCLCounter * LCL_FindItem(LCL_type * lcl, LCLitem_t item)
 { // find a particular item in the date structure and return a pointer to it
 	LCLCounter * hashptr;
@@ -462,7 +456,10 @@ void LCL_Update(LCL_type * lcl, const LCLitem_t item, const LCLweight_t value)
 	// update heap property if necessary
 
 	lcl->counters->item=0; // mark data structure as 'dirty'
-	const int hashval=(int) hash31(lcl->hasha, lcl->hashb,item) % lcl->hashsize;
+	int hashval=(int) hash31(lcl->hasha, lcl->hashb,item) % lcl->hashsize;
+	if (hashval==0){ // Bug where hashval is 0 causes double-counting.
+		hashval=1;
+	}
 	hashptr=lcl->hashtable[hashval];
 	
 	// compute the hash value of the item, and begin to look for it in 
@@ -537,15 +534,15 @@ int LCL_cmp( const void * a, const void * b) {
 int LCL_Output(LCL_type * lcl, int thresh,std::vector<std::pair<uint32_t,uint32_t>>* v)
 {
 	int numFrequentElems = 0;
-	#if MAXHEAP
+	#if MINMAXHEAP
 	const int size=lcl->size;
 	uint32_t curr_node;
-	std::stack<uint32_t> stack;
+	plf::stack<uint32_t> stack;
 	std::unordered_set <uint32_t> visitedgpars;
 	// 2 and 3 are the max nodes with largest count
-	if (lcl->counters[2].count>thresh)
+	if (lcl->counters[2].count >= thresh)
 		stack.push(2);
-	if (lcl->counters[3].count>thresh)
+	if (lcl->counters[3].count >= thresh)
 		stack.push(3);
 	while(!stack.empty()){
 		curr_node = stack.top();
@@ -565,10 +562,12 @@ int LCL_Output(LCL_type * lcl, int thresh,std::vector<std::pair<uint32_t,uint32_
 			else{
 				if (hasChildren(curr_node,size)){
 					uint32_t ch = curr_node << 1;
-					if (lcl->counters[ch].count >= thresh)
+					if (lcl->counters[ch].count >= thresh){
 						stack.push(ch);
-					if (lcl->counters[ch+1].count >= thresh)
+					}
+					if (lcl->counters[ch+1].count >= thresh){
 						stack.push(ch+1);
+					}
 				}
 			}
 		}	
@@ -583,7 +582,8 @@ int LCL_Output(LCL_type * lcl, int thresh,std::vector<std::pair<uint32_t,uint32_
 				}
 			}
 		}
-		v.push_back(std::make_pair(lcl->counters[curr_node].item,lcl->counters[curr_node].count));
+		v->push_back(std::make_pair(lcl->counters[curr_node].item,lcl->counters[curr_node].count));
+		numFrequentElems++;
 	}
 	#else
 	for (int i=1;i <=lcl->size;++i){
