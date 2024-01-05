@@ -430,10 +430,10 @@ void PushDownMax(LCL_type * lcl, int ptr){
 	}
 }
 
-void MinMaxHeapPushDown(LCL_type * lcl, int ptr){
+/*void MinMaxHeapPushDown(LCL_type * lcl, int ptr){
 	// node level is ptr mod 2, even level is min, odd is max
 	((31-__builtin_clz(ptr)) % 2) ? PushDownMax(lcl,ptr) : PushDownMin(lcl,ptr);
-}
+}*/
 
 
 LCLCounter * LCL_FindItem(LCL_type * lcl, LCLitem_t item)
