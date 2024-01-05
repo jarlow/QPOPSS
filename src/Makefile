@@ -201,12 +201,6 @@ cm_spacesaving_single_maxheap_accuracy.out : relation.o xis.o sketches.o spacesa
 cm_spacesaving_deleg_maxheap_accuracy.out: relation.o xis.o sketches.o spacesaving_accuracy.o lossycount_maxheap.o prng.o rand48.o
 	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount_maxheap.o prng.o rand48.o
 
-##Topkapi
-cm_topkapi.out: relation.o xis.o sketches.o cm_topkapi.o lossycount.o prng.o rand48.o lossycountminsketch.o
-	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount.o prng.o rand48.o lossycountminsketch.o
-
-cm_topkapi_accuracy.out: relation.o xis.o sketches.o cm_topkapi_accuracy.o lossycount.o prng.o rand48.o lossycountminsketch.o
-	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount.o prng.o rand48.o lossycountminsketch.o
 
 clean:
 	rm -f *.out
