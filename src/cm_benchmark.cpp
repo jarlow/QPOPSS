@@ -381,9 +381,25 @@ void printAccuracyResults(vector<pair<uint32_t,uint32_t>> *sorted_histogram,vect
         set<uint32_t> truth;
         set<uint32_t> elems;
         std::vector<std::pair<uint32_t,uint32_t>> true_positives;
-
+        printf("SUM NUM OPS: %lu\n",sumNumOps);
+        printf("Threshold: %f\n",sumNumOps*PHI);
+        // Check if lasttopk contains any duplicates
+        for (int i = 0; i < lasttopk->size(); i++){
+            for (int j = i+1; j < lasttopk->size(); j++){
+                if (lasttopk->at(i).first == lasttopk->at(j).first){
+                    printf("ERROR: Duplicate in lasttopk\n");
+                    printf("i: %d, j: %d, key: %u, value: %u\n",i,j,lasttopk->at(i).first,lasttopk->at(i).second);
+                }
+            }
+        }
+        // sum of counters in lasttopk
+        uint64_t sum = 0;
+        for (int i = 0; i < lasttopk->size(); i++){
+            sum+=lasttopk->at(i).second;
+        }
+        printf("Sum of counters in lasttopk: %lu\n",sum);
         for (int i = 0; i < sorted_histogram->size(); i++){
-            if (sorted_histogram->at(i).second > sumNumOps*PHI){
+            if (sorted_histogram->at(i).second >= sumNumOps*PHI){
                 truth.insert(sorted_histogram->at(i).first);
             }        
         }
