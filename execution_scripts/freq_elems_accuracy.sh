@@ -13,8 +13,8 @@ declare -A topk
 regex="SKEW:[[:space:]]*([0-9]\.{0,1}[1-9]{0,2})[[:space:]]*NUM TOPK:[[:space:]]*([0-9]+)[[:space:]]*PHI:[[:space:]]*(0\.[0-9]+)[[:space:]]*FILEPATH:[[:space:]]*.*\/datasets\/(.*)\.txt"
 
 ### Which experiments to run?
-vsdfsdfu=false #examine impact of df_s and df_u
-vsN=false #examine impact of N
+vsdfsdfu=true #examine impact of df_s and df_u
+vsN=true #examine impact of N
 vs=true # examine impact of query rate and phi.
 vt=true # Vary threads
 
@@ -82,11 +82,13 @@ num_counters_topkapi(){
 phi="0.00001"
 MAX_FILTER_SUMS="100 1000 10000 100000"
 MAX_FILTER_UNIQUES="16 32 64 128"
-streamlengths="30000000"
-versions="cm_spacesaving_deleg_maxheap_accuracy"
+streamlengths="100000000"
+beta="0.5"
+versions="cm_spacesaving_deleg_min_max_heap_accuracy"
 ## Vary Skew, df_s and df_u
 echo "------ Vary Skew, df_s and df_u------"
 if [ "$vsdfsdfu" = true ] ; then 
+    mkdir -p logs/accuracy/vsdfsdfu
     for version in $versions
     do 
         echo "$version"
@@ -106,11 +108,13 @@ if [ "$vsdfsdfu" = true ] ; then
                         echo "N: $N"
                         for rep in $num_reps
                         do
+                            filename="/home/victor/git/DelegationSpace-Saving/datasets/zipf_${skew}_${N}.txt"
                             echo "rep: $rep"
-                            new_columns=$(((buckets*rows*4 - num_thr*64)/(rows*4)))
-                            output=$(./bin/"$version".out $N $N $new_columns $rows 1 "$skew" 0 1 $num_thr 0 0 "$calgo_param" $topk_rates $K $phi "$MAX_FILTER_SUM" "$MAX_FILTER_UNIQUE")
-
-                            echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> logs/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_${N}_dfsdfu_accuracy.log
+                            new_columns=4
+                            output=$(./bin/"$version".out "$N" "$N" $new_columns $rows 1 "$skew" 0 1 $num_thr 0 0 "$calgo_param" $topk_rates $K $phi "$MAX_FILTER_SUM" "$MAX_FILTER_UNIQUE" "$beta" "$filename")
+                            echo "$N" "$N" $new_columns $rows 1 "$skew" 0 1 $num_thr 0 0 "$calgo_param" $topk_rates $K $phi "$MAX_FILTER_SUM" "$MAX_FILTER_UNIQUE"
+                            echo "$output"
+                            echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> logs/accuracy/vsdfsdfu/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_${N}_dfsdfu_accuracy.log
                         done
                     done
                 done
@@ -124,10 +128,11 @@ phi="0.0001"
 MAX_FILTER_SUMS="1000"
 MAX_FILTER_UNIQUES="16"
 streamlengths="1000000 10000000 100000000"
-versions="cm_spacesaving_deleg_maxheap_accuracy cm_spacesaving_single_maxheap_accuracy cm_topkapi_accuracy" #"cm_topkapi_accuracy cm_spacesaving_deleg_maxheap_accuracy cm_spacesaving_single_maxheap_accuracy"
+versions="cm_spacesaving_deleg_min_max_heap_accuracy cm_spacesaving_single_min_max_heap_accuracy cm_topkapi_accuracy" #"cm_topkapi_accuracy cm_spacesaving_deleg_min_max_heap_accuracy cm_spacesaving_single_min_max_heap_accuracy"
 ## Vary Skew and N
 echo "------Vary Skew and N------"
 if [ "$vsN" = true ] ; then 
+    mkdir -p logs/accuracy/vsN
     for version in $versions
     do 
         echo "$version"
@@ -165,8 +170,8 @@ if [ "$vsN" = true ] ; then
                         for rep in $num_reps
                         do
                             echo "rep: $rep"
-                            output=$(./bin/"$version".out "$N" "$N" $new_columns $rows 1 "$skew" 0 1 $num_thr 0 0 "$calgo_param" $topk_rates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUE $filepath)
-                            echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> logs/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_varN_accuracy.log
+                            output=$(./bin/"$version".out "$N" "$N" $new_columns $rows 1 "$skew" 0 1 $num_thr 0 0 "$calgo_param" $topk_rates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUE "$beta" $filepath)
+                            echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> logs/accuracy/vsN/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_varN_accuracy.log
                             if [[ "$version" == *"deleg"* ]]; then
                                 if [[ "$output" =~ $regex ]]; then
                                     if [[ "${BASH_REMATCH[4]}" != *"flows"* ]]; then 
@@ -190,10 +195,11 @@ phis="0.001 0.0002 0.0001"
 MAX_FILTER_SUM="1000"
 MAX_FILTER_UNIQUE="16"
 streamlengths="100000000"
-versions="cm_spacesaving_deleg_maxheap_accuracy cm_spacesaving_single_maxheap_accuracy cm_topkapi_accuracy"
+versions="cm_spacesaving_deleg_min_max_heap_accuracy cm_spacesaving_single_min_max_heap_accuracy cm_topkapi_accuracy"
 ## Vary Skew and phi (query rate has no effect on accuracy)
 echo "------ Vary Skew and phi ------"
 if [ "$vs" = true ] ; then 
+    mkdir -p logs/accuracy/vs
     for version in $versions
     do 
         echo "$version"
@@ -232,10 +238,10 @@ if [ "$vs" = true ] ; then
                         for rep in $num_reps
                         do
                             echo "rep: $rep"
-                            output=$(./bin/"$version".out $N $N $new_columns $rows 1 $skew 0 1 $num_thr 0 0 "$calgo_param" $topk_rates $K "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUE $filepath)
+                            output=$(./bin/"$version".out $N $N $new_columns $rows 1 $skew 0 1 $num_thr 0 0 "$calgo_param" $topk_rates $K "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUE "$beta" $filepath)
                             echo "$N $N $new_columns $rows 1 $skew 0 1 $num_thr 0 0 "$calgo_param" $topk_rates $K "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUE $filepath"
                             echo $output
-                            echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> logs/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_${N}_phi_accuracy.log
+                            echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> logs/accuracy/vs/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_${N}_phi_accuracy.log
                             if [[ "$version" == *"deleg"* ]]; then
                                 if [[ "$output" =~ $regex ]]; then
                                     if [[ "${BASH_REMATCH[4]}" != *"flows"* ]]; then 
@@ -260,11 +266,12 @@ MAX_FILTER_UNIQUE="16"
 streamlengths="100000000"
 threads="4 8 12 16 20 24"
 skew="1.25" 
-versions="cm_spacesaving_deleg_maxheap_accuracy cm_spacesaving_single_maxheap_accuracy cm_topkapi_accuracy"
+versions="cm_spacesaving_deleg_min_max_heap_accuracy cm_spacesaving_single_min_max_heap_accuracy cm_topkapi_accuracy"
 ## Vary threads, and phi
 echo "------ Vary Threads and phi------"
 
-if [ "$vt" = true ] ; then 
+if [ "$vt" = true ] ; then
+    mkdir -p logs/accuracy/vt
     for dsname in "${!datasets[@]}"
     do 
         echo "$dsname"
@@ -318,8 +325,8 @@ if [ "$vt" = true ] ; then
                             do
                                 echo "rep: $rep"
                                 #new_columns=$(((buckets*rows*4 - num_thr*64)/(rows*4)))
-                                output=$(./bin/"$version".out $N $N $new_columns $rows 1 $skew 0 1 $num_thr 0 0 "$calgo_param" $topk_rates $K "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUE $filepath)
-                                echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> logs/var_threads_"${version}"_"${num_thr}""_"${skew}_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_${N}_phi"${dsname}"_accuracy.log
+                                output=$(./bin/"$version".out $N $N $new_columns $rows 1 $skew 0 1 $num_thr 0 0 "$calgo_param" $topk_rates $K "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUE "$beta" $filepath)
+                                echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> logs/accuracy/vt/var_threads_"${version}"_"${num_thr}""_"${skew}_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_${N}_phi"${dsname}"_accuracy.log
                             if [[ "$version" == *"deleg"* ]]; then
                                 if [[ "$output" =~ $regex ]]; then
                                     if [[ "${BASH_REMATCH[4]}" != *"flows"* ]]; then 

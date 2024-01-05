@@ -66,13 +66,13 @@ num_counters_topkapi(){
     res=${res%.*}
     echo $res
 }
-num_thr='8'
+num_thr='24'
 
 rows=4
 
-universe_size="10000000"
-stream_size="10000000"
-skew="1.75"
+universe_size="100000000"
+stream_size="100000000"
+skew="2.75"
 num_seconds=0
 EPSILONratio="0.1"
 BETAratio="0.1"
@@ -85,9 +85,9 @@ BETAratio="0.1"
 #filename="/home/victor/git/Delegation-Space-Saving/caida_dst_port.txt"
 #Synthetic data 
 filename="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${stream_size}.txt"
-topk_rates="100"
+topk_rates="0"
 queries="0"
-phi="0.00001"
+phi="0.0002"
 MAX_FILTER_SUM="1000"
 K=1000
 MAX_FILTER_UNIQUES="16"
@@ -101,7 +101,7 @@ for version in $versions; do
     dss_counters=$(num_counters_deleg "$eps" "$skew" "$num_thr")
     dss_counters=$(( dss_counters*num_thr ))
 
-    new_columns=$(num_counters_topkapi "$dss_counters" "$MAX_FILTER_UNIQUES" "$num_thr" "$rows" "$skew")
+    new_columns=4 #$(num_counters_topkapi "$dss_counters" "$MAX_FILTER_UNIQUES" "$num_thr" "$rows" "$skew")
     echo "K ${K}"
     if [[ "$version" == *"prif"* ]]; then
         calgo_param=$(num_counters_prif "$eps" "$num_thr" "$beta")
