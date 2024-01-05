@@ -64,6 +64,11 @@ unsigned int queryAllRelatedDataStructuresAndUpdatePendigQueries(threadDataStruc
     return queryResult;
 }
 
+
+/*! \brief Serve all the pending queries of the thread
+ *
+ *  \param localThreadData the thread data structure
+ */
 void serveDelegatedQueries(threadDataStruct *localThreadData){
     //if (!localThreadData->queriesPending) return;
     for (int i=0; i<(numberOfThreads); i++){
@@ -602,7 +607,7 @@ int main(int argc, char **argv)
         for (int th_i = 0; th_i < rows_no; ++th_i){
             allocate_sketch( &th_local_sketch[i * rows_no + th_i], buckets_no);
         }
-    #endif
+        #endif
     }
 
     filterMatrix = (FilterStruct *) calloc((numberOfThreads)*(numberOfThreads), sizeof(FilterStruct));
@@ -646,7 +651,7 @@ int main(int argc, char **argv)
     #elif TOPKAPI
     topkapi_query_merge(&threadData[numberOfThreads-1],buckets_no,num_topk,rows_no,numberOfThreads);
     #elif PRIF
-    prifQuery(&(threadData[numberOfThreads-1]),numberOfThreads,PHI);
+    prifQuery(&(threadData[numberOfThreads-1]),numberOfThreads-1,PHI);
     #endif
     #endif
     postProcessing();

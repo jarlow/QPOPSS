@@ -50,8 +50,12 @@ void deallocate_sketch( LossySketch* sketch )
     * \param rows_no number of rows in each subsketch
     * \param numberOfThreads number of subsketches
 */
-void topkapi_query_merge(threadDataStruct *localThreadData, int range, int num_topk, int rows_no, int numberOfThreads){
-        num_topk=std::max(1,num_topk);
+void topkapi_query_merge(threadDataStruct * const localThreadData, 
+            const int range, 
+            const int num_topk, 
+            const int rows_no, 
+            const int numberOfThreads){
+        auto ntopk=std::max(1,num_topk);
         localThreadData->lasttopk.clear();
         LossySketch* th_local_sketch = localThreadData->th_local_sketch;
         LossySketch*  merged = (LossySketch* ) malloc(rows_no*sizeof(LossySketch));
@@ -68,9 +72,9 @@ void topkapi_query_merge(threadDataStruct *localThreadData, int range, int num_t
         uint32_t elem;
         int i,j;
         int id;
-        int frac_epsilon=num_topk*10;
+        int frac_epsilon=ntopk*10;
         int* is_heavy_hitter = (int* )malloc(range*sizeof(int));
-        int threshold = (int) ((range/num_topk) - 
+        int threshold = (int) ((range/ntopk) - 
                             (range/frac_epsilon));
 
         for (i = 0; i < range; ++i){
@@ -110,7 +114,7 @@ void topkapi_query_merge(threadDataStruct *localThreadData, int range, int num_t
             }
 
             for (i = 0, rit = topk_words.rbegin(); 
-                (i < num_topk) && (rit != topk_words.rend()); 
+                (i < ntopk) && (rit != topk_words.rend()); 
                     ++i, ++rit)
             {
                 j = rit->second;
@@ -131,7 +135,11 @@ void topkapi_query_merge(threadDataStruct *localThreadData, int range, int num_t
  *  \param v the vector to store the results in
  */
 
-void topkapi_query(threadDataStruct *threadDataArray, int K, float phi, vector<pair<uint32_t,uint32_t>>* v){
+void topkapi_query(const threadDataStruct *threadDataArray, 
+        const int K, 
+        const float phi, 
+        vector<pair<uint32_t,uint32_t>> * const v)
+{
     v->clear();
     std::unordered_map<uint32_t,uint32_t> res;
     for (int t=0;t < numberOfThreads;t++){

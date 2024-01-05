@@ -81,7 +81,7 @@ BETAratio="0.1"
 #Real Data
 #filename="/home/victor/git/Delegation-Space-Saving/words.txt"
 #filename="/home/victor/git/Delegation-Space-Saving/caida_dst_ip.txt"
-#filename="/home/victor/git/Delegation-Space-Saving/datasets/flows_dirA.txt"
+filename="/home/victor/git/Delegation-Space-Saving/datasets/flows_dirA.txt"
 #filename="/home/victor/git/Delegation-Space-Saving/caida_dst_port.txt"
 #Synthetic data 
 filename="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${stream_size}.txt"
@@ -90,9 +90,9 @@ queries="0"
 phi="0.0002"
 MAX_FILTER_SUM="1000"
 K=1000
-MAX_FILTER_UNIQUES="16"
-#versions="prif_accuracy"
-versions="cm_spacesaving_deleg_min_max_heap_${2}" #cm_spacesaving_deleg_min_heap_${2}" #cm_topkapi_accuracy" #"cm_spacesaving_deleg cm_spacesaving_deleg_maxheap cm_topkapi" #cm_topkapi_accuracy #cm_spacesaving_deleg_accuracy cm_spacesaving_deleg_maxheap_accuracy
+MAX_FILTER_UNIQUES="32"
+versions="cm_spacesaving_deleg_min_max_heap_${2}"
+#versions="cm_spacesaving_deleg_min_max_heap_${2}" #cm_spacesaving_deleg_min_heap_${2}" #cm_topkapi_accuracy" #"cm_spacesaving_deleg cm_spacesaving_deleg_maxheap cm_topkapi" #cm_topkapi_accuracy #cm_spacesaving_deleg_accuracy cm_spacesaving_deleg_maxheap_accuracy
 for version in $versions; do
     eps=$(echo "$phi*$EPSILONratio" | bc -l)
     eps=0$eps

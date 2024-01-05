@@ -3,7 +3,6 @@
 #define UTILS_H
 
 #include <sys/time.h>
-#include <stdlib.h>
 #include "getticks.h"
 
 

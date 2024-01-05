@@ -16,8 +16,8 @@ void serveDelegatedInserts(threadDataStruct * localThreadData){
 
         // parse filter and add each element to your own filter
         for (int i=0; i<filter->filterCount;i++){
-            uint32_t count = filter->filter_count[i];
-            uint32_t key = filter->filter_id[i];
+            const uint32_t count = filter->filter_count[i];
+            const uint32_t key = filter->filter_id[i];
             #if SPACESAVING
             LCL_Update(localThreadData->ss,key,count);
             #else // If vanilla Delegation Sketch is used
@@ -35,8 +35,13 @@ void serveDelegatedInserts(threadDataStruct * localThreadData){
     pthread_mutex_unlock(&localThreadData->mutex);
 }
 
-static inline void delegateInsert(threadDataStruct *localThreadData, unsigned int key, unsigned int increment, int owner, FilterStruct *filterMatrix, int MAX_FILTER_SUM){
-    FilterStruct* filter = &(filterMatrix[localThreadData->tid * (numberOfThreads) + owner]);
+static inline void delegateInsert(threadDataStruct *localThreadData, 
+        const uint32_t key, 
+        const uint32_t increment, 
+        const int owner, 
+        FilterStruct * const filterMatrix, 
+        const int MAX_FILTER_SUM){
+    FilterStruct *filter = &(filterMatrix[localThreadData->tid * (numberOfThreads) + owner]);
 
     InsertInDelegatingFilterWithListAndMaxSum(filter, key);
     localThreadData->sumcounter++;
@@ -69,7 +74,12 @@ static inline void delegateInsert(threadDataStruct *localThreadData, unsigned in
 
 
 // Performs a frequent elements query 
-void QpopssQuery(threadDataStruct *threadData, int selfId, float phi, vector<pair<uint32_t,uint32_t>> *result, FilterStruct* filterMatrix){
+void QpopssQuery(threadDataStruct * const threadData, 
+        const int selfId, 
+        const float phi, 
+        vector<pair<uint32_t,uint32_t>> * const result, 
+        const FilterStruct *filterMatrix)
+{
     int numFETotal=0;
     LCL_type* local_spacesaving;
     result->resize(0);
@@ -104,11 +114,13 @@ void QpopssQuery(threadDataStruct *threadData, int selfId, float phi, vector<pai
             int numFE = LCL_Output(local_spacesaving,streamsize*phi,result);
             pthread_mutex_unlock(&threadData[i].mutex);
             
+            #if QUERY_FILTERCOUNTS
             auto it = result->begin();
             advance(it,numFETotal);
             addDelegationFilterCounts(i,it,result->end(),numberOfThreads,filterMatrix);
             numFETotal += numFE;
-            
+            #endif
+
             bm[i]=true;
             num_complete++;
             serveDelegatedInserts(&threadData[selfId]);

@@ -75,6 +75,9 @@
 
 #define PREINSERT 1
 #define LATENCY 1
+#define QUERY_FILTERCOUNTS 1
+
+
 
 int QUERRY_RATE;
 int TOPK_QUERY_RATE;
