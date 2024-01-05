@@ -389,15 +389,21 @@ int LCL_Output(LCL_type * lcl, int thresh,std::vector<std::pair<uint32_t,uint32_
 {
 	int numFrequentElems = 0;
 	#if MAXHEAP
-	int curr_node;
-	plf::stack<int> stack;
-	stack.push(1); // 1 is root
+	const int size=lcl->size;
+	uint32_t curr_node;
+	std::stack<uint32_t> stack;
+	std::unordered_set <uint32_t> visitedgpars;
+	// 2 and 3 are the max nodes with largest count
+	if (lcl->counters[2].count>thresh)
+		stack.push(2);
+	if (lcl->counters[3].count>thresh)
+		stack.push(3);
 	while(!stack.empty()){
 		curr_node = stack.top();
 		stack.pop();
 		if (isMaxLevel(curr_node,lcl)){
-			if (hasGrandchildren(curr_node,lcl->size)){
-				uint16_t gc = curr_node << 2;
+			if (hasGrandchildren(curr_node,size)){
+				uint32_t gc = curr_node << 2;
 				if (lcl->counters[gc].count >= thresh)
 					stack.push(gc);
 				if (lcl->counters[gc+1].count >= thresh)
@@ -408,8 +414,8 @@ int LCL_Output(LCL_type * lcl, int thresh,std::vector<std::pair<uint32_t,uint32_
 					stack.push(gc+3);
 			}
 			else{
-				if (hasChildren(curr_node,lcl->size)){
-					uint16_t ch = curr_node << 1;
+				if (hasChildren(curr_node,size)){
+					uint32_t ch = curr_node << 1;
 					if (lcl->counters[ch].count >= thresh)
 						stack.push(ch);
 					if (lcl->counters[ch+1].count >= thresh)
@@ -419,7 +425,7 @@ int LCL_Output(LCL_type * lcl, int thresh,std::vector<std::pair<uint32_t,uint32_
 		}	
 		else{ // Node is on a min level
 			if (hasGrandparent(curr_node)){
-				uint16_t gpar = curr_node >> 2;
+				uint32_t gpar = curr_node >> 2;
 				if (visitedgpars.find(gpar) == visitedgpars.end()){
 					if (lcl->counters[gpar].count >= thresh){
 						stack.push(gpar);
@@ -427,8 +433,6 @@ int LCL_Output(LCL_type * lcl, int thresh,std::vector<std::pair<uint32_t,uint32_
 					}
 				}
 			}
-			v->push_back(std::make_pair((uint32_t)lcl->maxheap[curr_node]->item,lcl->maxheap[curr_node]->count));
-			numFrequentElems++;
 		}
 		v.push_back(std::make_pair(lcl->counters[curr_node].item,lcl->counters[curr_node].count));
 	}
@@ -461,6 +465,8 @@ void LCL_ShowHeap(LCL_type * lcl)
 			j=2*j+1;
 		}
 	}
+
+	/*
 	printf("\nMin-heap array:\n");
 	printf("Elem:  ");
 	for (i=1; i<=lcl->size; i++){
@@ -471,4 +477,5 @@ void LCL_ShowHeap(LCL_type * lcl)
 		printf("%u ",lcl->counters[i].count);
 	}
 	printf("\n");
+	*/
 }
