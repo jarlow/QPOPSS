@@ -33,7 +33,7 @@ int findMinIndex(FilterStruct* filter){
 
 //Checks if key is in the filter.
 //Return: the index if key is in the filter, otherwise -1
-static inline int queryFilterIndex16(uint32_t key, uint32_t * filterIndexes){   
+static inline int queryFilterIndex16(const uint32_t key, const uint32_t * filterIndexes){   
     const __m128i s_item = _mm_set1_epi32(key);
     __m128i *filter = (__m128i *)filterIndexes;
     
@@ -56,7 +56,7 @@ static inline int queryFilterIndex16(uint32_t key, uint32_t * filterIndexes){
     }
 }
 
-static inline int queryFilterIndex(uint32_t key, uint32_t * filterIndexes, int max){
+static inline int queryFilterIndex(const uint32_t key, const uint32_t * filterIndexes, const int max){
     for (int i =0; i < max; i++ ){
         if (filterIndexes[i] == key){
             return i;
@@ -189,7 +189,7 @@ static inline int tryInsertInDelegatingFilterWithList(FilterStruct * filter, uns
 }
 
 // Insert an element into a filter, filter is full if either max sum or max uniques are reached
-static inline void InsertInDelegatingFilterWithListAndMaxSum(FilterStruct * filter, unsigned int key){
+static inline void InsertInDelegatingFilterWithListAndMaxSum(FilterStruct * const filter, unsigned int key){
     int qRes = queryFilterIndex(key,filter->filter_id,filter->filterCount);
     //int qRes = queryFilterIndex16(key,filter->filter_id);
     if (qRes == -1){
