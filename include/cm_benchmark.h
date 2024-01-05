@@ -75,7 +75,7 @@
 
 #define PREINSERT 1
 #define LATENCY 1
-#define QUERY_FILTERCOUNTS 1
+#define QUERY_FILTERCOUNTS 0
 
 
 
