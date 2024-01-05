@@ -195,6 +195,13 @@ generate_synthetic_data.o : generate_synthetic_data.cpp relation.o
 generate_synthetic_data.out : generate_synthetic_data.o relation.o
 	$(CPP) -o ${BIN}/$@ generate_synthetic_data.o relation.o 
 
+cm_spacesaving_single_maxheap_accuracy.out : relation.o xis.o sketches.o spacesaving_single_accuracy.o lossycount_maxheap.o prng.o rand48.o
+	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount_maxheap.o prng.o rand48.o
+
+cm_spacesaving_deleg_maxheap_accuracy.out: relation.o xis.o sketches.o spacesaving_accuracy.o lossycount_maxheap.o prng.o rand48.o
+	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_benchmark.o lossycount_maxheap.o prng.o rand48.o
+
+
 clean:
 	rm -f *.out
 	rm -f *.o

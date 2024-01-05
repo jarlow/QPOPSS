@@ -11,7 +11,7 @@ fancy_names = ["SeqSS","DeSS","Topkapi"] #["Single Space-Saving","Delegation Spa
 datasets = ["", "flows_dirA", "flows_dirB"]
 fancy_dataset_names = ["Zipf", "CAIDA Flows DirA", "CAIDA Flows DirB"]
 
-showplots_flag = True
+showplots_flag = False
 saveplots_flag = True
 ''' ######### '''
 

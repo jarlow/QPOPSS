@@ -29,6 +29,8 @@ using namespace std;
 
 FilterStruct * filterMatrix;
 
+set<uint32_t> uniques;
+uint32_t uniques_no;
 int K;
 float PHI;
 int MAX_FILTER_SUM,MAX_FILTER_UNIQUES;
@@ -255,7 +257,7 @@ void preinsert(threadDataStruct * localThreadData){
     end=tuples_no;
     #endif
     #if PRIF
-    if (tid == numberOfThreads-1){
+    if (localThreadData->tid == numberOfThreads-1){
         prifMergeThreadWorkPreins(localThreadData);
     }
     else{
@@ -341,7 +343,7 @@ void * threadEntryPoint(void * threadArgs){
     barrier_cross(&barrier_global);
     barrier_cross(&barrier_started);
     #if PRIF
-    if (tid == numberOfThreads-1){
+    if (localThreadData->tid == numberOfThreads-1){
         prifMergeThreadWork(localThreadData, numberOfThreads, PHI);
     }
     else{
@@ -388,8 +390,8 @@ void printAccuracyResults(vector<pair<uint32_t,uint32_t>>*sorted_histogram,vecto
                 true_positives.push_back(lasttopk->at(i));
             } 
         }
-        float recall;
-        float precision;
+        float recall=0;
+        float precision=0;
         float avg_rel_error=0;
         int num_matches=0;
         for (int i = 0; i < true_positives.size(); i++){
@@ -454,6 +456,7 @@ void read_ints(const char *file_name, vector<uint32_t>* input_data , vector<uint
         input_data->push_back(i);
         histogram->at(i)+=1;
     }
+    //*length=index;
     fclose(file);
     printf("Done reading input\n");
 }
@@ -515,7 +518,7 @@ int main(int argc, char **argv)
 
    if ((argc != 19) && (argc != 20))
     {
-        printf("Usage: sketch_compare.out dom_size tuples_no buckets_no rows_no DIST_TYPE DIST_PARAM DIST_DECOR runs_no num_threads querry_rate duration(in sec, 0 means one pass over the data), (optional) input_file_name \n");
+        printf("Received %d args instead of 19 or 20. Usage: sketch_compare.out dom_size tuples_no buckets_no rows_no DIST_TYPE DIST_PARAM DIST_DECOR runs_no num_threads querry_rate duration(in sec, 0 means one pass over the data), counting_param, topk_query_rate, k, phi, max_filter_sum, max_filter_uniques, beta (optional) input_file_name \n",argc);
         exit(1);
     }
     int use_real_data = 0;
@@ -643,7 +646,7 @@ int main(int argc, char **argv)
     #elif TOPKAPI
     topkapi_query_merge(&threadData[numberOfThreads-1],buckets_no,num_topk,rows_no,numberOfThreads);
     #elif PRIF
-    prifQuery(&(threadData[numberOfThreads-1]));
+    prifQuery(&(threadData[numberOfThreads-1]),numberOfThreads,PHI);
     #endif
     #endif
     postProcessing();

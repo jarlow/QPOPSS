@@ -25,12 +25,17 @@ void initThreadData(Count_Min_Sketch ** sketchArray, Relation * relation,int MAX
 
     threadIds = (int *) calloc(numberOfThreads, sizeof(int));
     threadData = (threadDataStruct *) calloc(numberOfThreads, sizeof(threadDataStruct));
+    int num_queries=(1/(float)100000 * TOPK_QUERY_RATE * tuples_no)/numberOfThreads;
 
     for (i=0; i<numberOfThreads; ++i){
         threadData[i].tid = i;
         threadIds[i] = i;
         threadData[i].theSketch = sketchArray[i];
         threadData[i].sketchArray  = sketchArray;
+
+
+        threadData[i].th_local_sketch = th_local_sketch;
+        threadData[i].randoms=cm_cw2b;
 
         threadData[i].theGlobalSketch = globalSketch;
         threadData[i].theData = relation;

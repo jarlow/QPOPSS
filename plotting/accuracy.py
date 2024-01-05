@@ -5,6 +5,7 @@ import seaborn as sns
 import pandas as pd
 import matplotlib
 import itertools
+import os
 from math import log10,ceil,floor
 import numpy as np
 from scipy.special import zeta
@@ -19,13 +20,15 @@ plt.rc('legend', fontsize=16)
 matplotlib.rcParams.update({'font.size': 18})
 
 # What experiment(s) should we plot?
-vs_N = False
-vs_dfu_dfs = False
-vs_phi = False
+vs_N = True
+vs_dfu_dfs = True
+vs_phi = True
 vt_phi = True
 
 
-def crate_accuracy_results_df(algorithm_names,streamlens,df_max_uniques,df_max_sums,threads,skew_rates,phis,experiment_name,dataset_names,x_axis_name,space_flag):
+def crate_accuracy_results_df(algorithm_names,streamlens,df_max_uniques,
+                              df_max_sums,threads,skew_rates,phis,experiment_name,
+                              dataset_names,x_axis_name,space_flag,path_prefix="accuracy"):
     columns=["Zipf Parameter", "Algorithm", "Streamlength", "df_u","df_s",
             "Precision","Recall","Average Relative Error", "Threads", r"$\phi$",
             "Dataset","Space","Counters"]
@@ -49,7 +52,7 @@ def crate_accuracy_results_df(algorithm_names,streamlens,df_max_uniques,df_max_s
                         for u in df_max_uniques:
                             for m in df_max_sums:
                                     for z in srs:
-                                        globname="logs/var_"+x_axis_name+"*" + n + "*_accuracy_"+str(t)+"_"+ str(z)+"_"+str(format_float(phi))+"_"+str(m)+"_"+str(u)+"_"+str(N)+"_"+experiment_name+ds+"_accuracy.log"
+                                        globname="logs/" + path_prefix + "var_"+x_axis_name+"*" + n + "*_accuracy_"+str(t)+"_"+ str(z)+"_"+str(format_float(phi))+"_"+str(m)+"_"+str(u)+"_"+str(N)+"_"+experiment_name+ds+"_accuracy.log"
                                         print(globname)
                                         file=glob.glob(globname)[0]
                                         print(file)
@@ -64,7 +67,7 @@ def crate_accuracy_results_df(algorithm_names,streamlens,df_max_uniques,df_max_s
                                         counters=np.nan
                                         space=np.nan                  
                                         if space_flag:
-                                            fname_memory = glob.glob("logs/var_skew_*" + n + "*_accuracy_*_" + str(z)+"_"+str(format_float(phi))+"_"+str(m)+"_"+str(u)+"_"+str(N)+"_memory.log")[0]
+                                            fname_memory = glob.glob("logs/" + path_prefix + "var_skew_*" + n + "*_accuracy_*_" + str(z)+"_"+str(format_float(phi))+"_"+str(m)+"_"+str(u)+"_"+str(N)+"_memory.log")[0]
                                             space, counters = parse_memory(fname_memory)
                                         accudf.loc[len(accudf.index)] = [z,fancy_names[names.index(algname)],scinotation,u,m,pavg,ravg,areavg,t,r"${scale}\times 10^{{-{exp}}}$".format(scale=int(phi*(10**(-floor(log10(phi))))),exp=-floor(log10(phi))),fancy_dataset_names[datasets.index(ds)],float(space),float(counters)]
     return accudf
@@ -84,7 +87,7 @@ if vs_N:
     algonames=names
     palette = [ (0.9333333333333333, 0.5215686274509804, 0.2901960784313726), (0.41568627450980394, 0.8, 0.39215686274509803)]
     ''' ########## '''
-    accudf=crate_accuracy_results_df(algonames,streamlens,df_max_uniques,df_max_sums,[24],skew_rates,phis,"varN",[""],"skew",False)
+    accudf=crate_accuracy_results_df(algonames,streamlens,df_max_uniques,df_max_sums,[24],skew_rates,phis,"varN",[""],"skew",False,path_prefix="accuracy/vsN/")
     accudf.rename(columns={"Streamlength":"N"},inplace=True)
 
     # single has no ARE, so we only plot Delegation Space-Saving ARE:
@@ -139,8 +142,11 @@ if vs_N:
     ax1.set_xlabel("Zipf Parameter")
     ax1.set_ylabel("Average Relative Error")
     plt.tight_layout()
-    name = "plots/vs_avg_rel_error_DeSS_varyN.svg"
+    name = "plots/accuracy/vsN/vs_avg_rel_error_DeSS_varyN.svg"
     if saveplots_flag:
+        path = os.path.split(name)[:-1][0]
+        if not os.path.exists(path):
+            os.makedirs(path)
         plt.savefig(name, format="svg", dpi=4000)
     if showplots_flag:
         plt.show()
@@ -155,11 +161,11 @@ if vs_dfu_dfs:
     phis=[0.00001]
     df_max_uniques = [16, 32, 64, 128]
     df_max_sums = [100, 1000, 10000, 100000] 
-    streamlens = [30000000]
+    streamlens = [100000000]
     skew_rates = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]
     algnames=['spacesaving deleg']
     ''' ########## '''
-    accudf=crate_accuracy_results_df(algnames,streamlens,df_max_uniques,df_max_sums,[24],skew_rates,phis,"dfsdfu",[""],"skew",False)
+    accudf=crate_accuracy_results_df(algnames,streamlens,df_max_uniques,df_max_sums,[24],skew_rates,phis,"dfsdfu",[""],"skew",False,path_prefix="accuracy/vsdfsdfu/")
 
     ''' Matplotlib aesthetic parameters 3dplot '''
     plt.rcParams['xtick.major.pad'] = 12
@@ -186,8 +192,11 @@ if vs_dfu_dfs:
     ax.set_ylabel("Skew")
     ax.set_zlabel("Average Relative Error")
     plt.tight_layout()
-    name = "plots/vs_avgrel_finalVarydfsdfu.svg"
+    name = "plots/accuracy/vsdfudfs/vs_avgrel_finalVarydfsdfu.svg"
     if saveplots_flag:
+        path = os.path.split(name)[:-1][0]
+        if not os.path.exists(path):
+            os.makedirs(path)
         plt.savefig(name, format="svg", dpi=4000)
     if showplots_flag:
         plt.show()
@@ -208,8 +217,11 @@ if vs_dfu_dfs:
     ax.set_ylabel("Skew")
     ax.set_zlabel("Precision")
 
-    name = "plots/vs_precision_finalVarydfsdfu.svg"
+    name = "plots/accuracy/vsdfudfs/vs_precision_finalVarydfsdfu.svg"
     if saveplots_flag:
+        path = os.path.split(name)[:-1][0]
+        if not os.path.exists(path):
+            os.makedirs(path)
         plt.savefig(name, format="svg", dpi=4000)
     if showplots_flag:
         plt.show()
@@ -230,8 +242,11 @@ if vs_dfu_dfs:
     ax.set_xlabel("Skew")
     ax.set_zlabel("Recall")
 
-    name = "plots/vs_recall_finalVarydfsdfu.svg"
+    name = "plots/accuracy/vsdfudfs/vs_recall_finalVarydfsdfu.svg"
     if saveplots_flag:
+        path = os.path.split(name)[:-1][0]
+        if not os.path.exists(path):
+            os.makedirs(path)
         plt.savefig(name, format="svg", dpi=4000)
     if showplots_flag:
         plt.show()
@@ -249,14 +264,14 @@ if vs_phi:
     skew_rates = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]
     algonames=names
 
-    accudf=crate_accuracy_results_df(algonames,streamlens,df_max_uniques,df_max_sums,[24],skew_rates,phis,"phi",[""],"skew",False)
+    accudf=crate_accuracy_results_df(algonames,streamlens,df_max_uniques,df_max_sums,[24],skew_rates,phis,"phi",[""],"skew",False,path_prefix="accuracy/vs/")
     matplotlib.rcParams['figure.figsize'] = (6, 5.5) 
     plt.rc('legend', fontsize=26)
     matplotlib.rcParams.update({'font.size': 26})
 
     fig, ax1 = plt.subplots()
     lineplot=sns.lineplot(x="Zipf Parameter", y="Precision", data=accudf, markersize=13,
-                 linewidth=7, markers=True, palette="muted", ax=ax1, style=r"$\phi$",hue="Algorithm", legend=True)
+                 linewidth=7, markers=True, palette="muted", ax=ax1, style=r"$\phi$",hue="Algorithm", legend='brief')
     ax1.set_xlabel("Skew")
     ax1.set_ylabel("Precision")
     leg=lineplot.legend(fontsize=24,
@@ -274,8 +289,11 @@ if vs_phi:
         columnspacing=0.2)
     [L.set_linewidth(5.0) for L in leg.legendHandles]
     plt.tight_layout()
-    name = "plots/vs_precision_finalVaryQRPhi.svg"
+    name = "plots/accuracy/vs/vs_precision_finalVaryQRPhi.svg"
     if saveplots_flag:
+        path = os.path.split(name)[:-1][0]
+        if not os.path.exists(path):
+            os.makedirs(path)
         plt.savefig(name, format="svg", dpi=4000, bbox_inches='tight')
     if showplots_flag:
         plt.show()
@@ -291,8 +309,11 @@ if vs_phi:
     plt.tight_layout()
 
     plt.tight_layout()
-    name = "plots/vs_recall_finalVaryQRPhi.svg"
+    name = "plots/accuracy/vs/vs_recall_finalVaryQRPhi.svg"
     if saveplots_flag:
+        path = os.path.split(name)[:-1][0]
+        if not os.path.exists(path):
+            os.makedirs(path)
         plt.savefig(name, format="svg", dpi=4000, bbox_inches='tight')
     if showplots_flag:
         plt.show()
@@ -314,7 +335,7 @@ if vt_phi:
     threads=[4,8,12,16,20,24]
     algnames=['spacesaving deleg',"topkapi"]
     ''' ########## '''
-    accudf=crate_accuracy_results_df(algnames,streamlens,df_max_uniques,df_max_sums,threads,[1.25],phis,"phi",datasets,"threads",False)
+    accudf=crate_accuracy_results_df(algnames,streamlens,df_max_uniques,df_max_sums,threads,[1.25],phis,"phi",datasets,"threads",False,path_prefix="accuracy/vt/")
     accudf.replace({'CAIDA Flows DirA': 'CAIDA A'}, regex=True,inplace=True)
     accudf.replace({'CAIDA Flows DirB': 'CAIDA B'}, regex=True,inplace=True)
     accudf.replace({'Zipf': 'Zipf 1.25'}, regex=True,inplace=True)
@@ -324,7 +345,7 @@ if vt_phi:
                                                    #(accudf.Algorithm == "DeSS") & 
                                                     accudf[r"$\phi$"] == r"$1\times 10^{-4}$"
                                                 ],
-                          markersize=13, linewidth=7, markers=True, style="Dataset", ax=ax1, legend=True,palette=palette)
+                          markersize=13, linewidth=7, markers=True, style="Dataset", ax=ax1, legend='brief',palette=palette)
     leg=lineplot.legend(fontsize=24,
         #bbox_to_anchor=(0.73, 0.53 ,0.3,0.5),
         loc='best',
@@ -365,8 +386,11 @@ if vt_phi:
     ax1.set_ylabel("Average Relative Error")
     ax1.set_yscale("log")
     plt.tight_layout()
-    name = "plots/vt_avgre_final.svg"
+    name = "plots/accuracy/vt/vt_avgre_final.svg"
     if saveplots_flag:
+        path = os.path.split(name)[:-1][0]
+        if not os.path.exists(path):
+            os.makedirs(path)
         plt.savefig(name, format="svg", dpi=4000)
     if showplots_flag:
         plt.show()
@@ -389,8 +413,11 @@ if vt_phi:
     plt.xticks([4, 8, 12, 16, 20, 24])
     plt.tight_layout()
     plt.subplots_adjust(top=0.83)
-    name = "plots/vt_precision_and_avgre_final.svg"
+    name = "plots/accuracy/vt/vt_precision_and_avgre_final.svg"
     if saveplots_flag:
+        path = os.path.split(name)[:-1][0]
+        if not os.path.exists(path):
+            os.makedirs(path)
         plt.savefig(name, format="svg", dpi=4000)
     if showplots_flag:
         plt.show()

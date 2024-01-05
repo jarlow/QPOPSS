@@ -146,6 +146,10 @@ LCL_type * LCL_Init(const float fPhi)
 		result->counters[i].next=NULL;
 		result->counters[i].prev=NULL;
 		result->counters[i].item=LCL_NULLITEM;
+		#if MAXHEAP
+		result->counters[i].maxheapptr=&(result->maxheap[i]);
+		result->maxheap[i]=&result->counters[i];
+		#endif
 		// initialize items and counters to zero
 	}
 
@@ -204,7 +208,9 @@ void MinHeapBubbleDown(const LCL_type * lcl, int ptr)
 		cpt=&lcl->counters[ptr]; // create a current pointer
 		minchild=&lcl->counters[mc]; // create a pointer to the child with the smallest count
 
-		if (cpt->count < minchild->count) break;
+		if (cpt->count < minchild->count){
+			break;
+		}
 		// if the parent is less than the smallest child, we can stop
 
 		swapAndMaintainHashtable(cpt,minchild,lcl);
@@ -289,6 +295,147 @@ void MinMaxHeapPushUp(const LCL_type * lcl, const int ptr){
 	}
 }
 
+/* max heap bubble up 
+	Implemented using pointers to LCLCounter objects in lcl->counters.
+
+*/
+void MaxHeapBubbleUp(LCL_type * lcl, int ptr)
+{ 
+	LCLCounter * tmp;
+	LCLCounter * cpt, *maxchild, *parent;
+	LCLCounter ** tmpptr;
+	int pr;
+
+	while(1)
+	{
+		pr=(ptr>>1); // Parent index is floor(ptr/2) 
+		if (pr < 1) break;
+		// Stop if parent is out of bounds, array indexed from 1.
+
+		parent = lcl->maxheap[pr];
+		cpt=lcl->maxheap[ptr]; // create a current pointer
+
+		if(parent->count >= cpt->count) break;
+		// If parent is larger than current pointer we are done
+
+		lcl->maxheap[ptr] = parent;
+		lcl->maxheap[pr] = cpt; 
+		// Swap pointers in maxheap array
+		
+		parent->maxheapptr=&lcl->maxheap[ptr];
+		cpt->maxheapptr=&lcl->maxheap[pr];
+		// Swap the pointers in hashtable to maxheap translation
+
+		ptr=pr;
+		// continue on with the bubble-up from the parent position
+	} 
+}
+
+int find_min_index(LCL_type * lcl, int ptr){
+	int c1=(ptr<<2)+
+			((lcl->counters[ptr<<2].count<lcl->counters[(ptr<<2)+1].count)? 0 : 1);
+	int c2=(ptr<<2)+
+		((lcl->counters[ptr<<2+2].count<lcl->counters[(ptr<<2)+3].count)? 2 : 3);
+	return ((lcl->counters[c1].count<lcl->counters[c2].count)? c1 : c2);
+}
+
+int find_max_index(LCL_type * lcl, int ptr){
+	int c1=(ptr<<2)+
+			((lcl->counters[ptr<<2].count>lcl->counters[(ptr<<2)+1].count)? 0 : 1);
+	int c2=(ptr<<2)+
+		((lcl->counters[ptr<<2+2].count>lcl->counters[(ptr<<2)+3].count)? 2 : 3);
+	return ((lcl->counters[c1].count>lcl->counters[c2].count)? c1 : c2);
+}
+
+void PushDownMin(LCL_type * lcl, int ptr){
+	LCLCounter tmp;
+	LCLCounter * cpt, *minchild;
+	int mc;
+	bool gc=false;
+	while(1){
+		if ((ptr<<1) + 1>lcl->size) break; // if no children, break
+		cpt=&lcl->counters[ptr];
+		if (!(((ptr<<2) + 3)>lcl->size)) { // if grandchild exists
+			mc=find_min_index(lcl,ptr);
+			minchild=&lcl->counters[mc];
+			gc=true;
+		}
+		else{
+			mc=(ptr<<1)+
+				((lcl->counters[ptr<<1].count<lcl->counters[(ptr<<1)+1].count)? 0 : 1);
+			minchild=&lcl->counters[mc];
+		}
+		if (lcl->counters[mc].count < lcl->counters[ptr].count){
+			// swap
+			tmp=*cpt;
+			*cpt=*minchild;
+			*minchild=tmp;
+		}
+		else{
+			break;
+		}
+		if (gc){
+			if(lcl->counters[mc].count > lcl->counters[mc>>1].count){
+				// swap gc
+				cpt=&lcl->counters[mc];
+				minchild=&lcl->counters[mc>>1];
+ 				tmp=*cpt;
+				*cpt=*minchild;
+				*minchild=tmp;
+			}
+		}
+		ptr=mc;
+	}
+}
+void PushDownMax(LCL_type * lcl, int ptr){
+	LCLCounter tmp;
+	LCLCounter * cpt, *maxchild;
+	int mc;
+	bool gc=false;
+	while(1){
+		if ((ptr<<1) + 1>lcl->size) break; // if no children, break
+
+		cpt=&lcl->counters[ptr];
+
+		if (!(((ptr<<2) + 3)>lcl->size)) { // if grandchild exists
+			mc=find_max_index(lcl,ptr);
+			maxchild=&lcl->counters[mc];
+			gc=true;
+		}
+		else{
+			mc=(ptr<<1)+
+				((lcl->counters[ptr<<1].count>lcl->counters[(ptr<<1)+1].count)? 0 : 1);
+			maxchild=&lcl->counters[mc];
+		}
+		if (lcl->counters[mc].count > lcl->counters[ptr].count){
+			// swap
+			tmp=*cpt;
+			*cpt=*maxchild;
+			*maxchild=tmp;
+		}
+		else{
+			break;
+		}
+		if (gc){
+			if(lcl->counters[mc].count < lcl->counters[mc>>1].count){
+				// swap gc
+				cpt=&lcl->counters[mc];
+				maxchild=&lcl->counters[mc>>1];
+ 				tmp=*cpt;
+				*cpt=*maxchild;
+				*maxchild=tmp;
+			}
+		}
+		ptr=mc;
+	}
+}
+
+/*void MinMaxHeapPushDown(LCL_type * lcl, int ptr){
+	// node level is ptr mod 2, even level is min, odd is max
+	((31-__builtin_clz(ptr)) % 2) ? PushDownMax(lcl,ptr) : PushDownMin(lcl,ptr);
+}*/
+
+
 LCLCounter * LCL_FindItem(LCL_type * lcl, LCLitem_t item)
 { // find a particular item in the date structure and return a pointer to it
 	LCLCounter * hashptr;
@@ -310,6 +457,7 @@ LCLCounter * LCL_FindItem(LCL_type * lcl, LCLitem_t item)
 void LCL_Update(LCL_type * lcl, const LCLitem_t item, const LCLweight_t value)
 {
 	LCLCounter * hashptr;
+	LCLCounter ** maxheapptr;
 	// find whether new item is already stored, if so store it and add one
 	// update heap property if necessary
 
@@ -322,6 +470,7 @@ void LCL_Update(LCL_type * lcl, const LCLitem_t item, const LCLweight_t value)
 
 	while (hashptr) {
 		if (hashptr->item==item) {
+			maxheapptr = hashptr->maxheapptr;
 			hashptr->count+=value; // increment the count of the item
 			#if MINMAXHEAP
 			hashptr = MinMaxHeapPushDown(lcl,hashptr - lcl->counters);
