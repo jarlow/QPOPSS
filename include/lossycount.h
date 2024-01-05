@@ -5,8 +5,8 @@
 #ifndef LOSSYCOUNTING_h
 #define LOSSYCOUNTING_h
 
-#ifndef MAXHEAP
-#define MAXHEAP 0
+#ifndef MINMAXHEAP
+#define MINMAXHEAP 1
 #endif
 
 #include "prng.h"
