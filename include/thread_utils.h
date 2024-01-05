@@ -32,7 +32,6 @@ void initThreadData(Count_Min_Sketch ** sketchArray, Relation * relation,int MAX
         threadIds[i] = i;
         threadData[i].theSketch = sketchArray[i];
         threadData[i].sketchArray  = sketchArray;
-        threadData[i].topkapi_instance = topkapi[i];
 
 
         threadData[i].th_local_sketch = th_local_sketch;
