@@ -26,9 +26,9 @@ typedef struct lclcounter_t
   int hash = 0; // its hash value
   volatile LCLweight_t count = 0; // (upper bound on) count for the item
   LCLweight_t delta = 0; // max possible error in count for the value
-  LCLCounter *prev, *next; // pointers in doubly linked list for hashtable
-  LCLCounter **maxheapptr;
-} LCLCounter; // 32 bytes
+  lclcounter_t *prev, *next; // pointers in doubly linked list for hashtable
+  lclcounter_t **maxheapptr;
+}LCLCounter; // 32 bytes
 
 #define LCL_HASHMULT 3  // how big to make the hashtable of elements:
   // multiply 1/eps by this amount
@@ -64,5 +64,6 @@ int LCL_Output(LCL_type *,int,std::vector<std::pair<uint32_t,uint32_t>>*);
 void LCL_ShowHeap(LCL_type *);
 LCL_type * LCL_Copy(LCL_type *);
 void LCL_CheckHash(LCL_type * lcl, uint32_t item, int hash);
+#endif
 
 #endif
