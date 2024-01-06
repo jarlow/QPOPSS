@@ -467,7 +467,7 @@ void LCL_Update(LCL_type * lcl, const LCLitem_t item, const LCLweight_t value)
 
 	while (hashptr) {
 		if (hashptr->item==item) {
-			maxheapptr = hashptr->maxheapptr;
+			//maxheapptr = hashptr->maxheapptr;
 			hashptr->count+=value; // increment the count of the item
 			#if MINMAXHEAP
 			hashptr = MinMaxHeapPushDown(lcl,hashptr - lcl->counters);
@@ -508,7 +508,8 @@ void LCL_Update(LCL_type * lcl, const LCLitem_t item, const LCLweight_t value)
 	// update the upper bound on the items frequency
 	lcl->root->count=value+lcl->error;
 	#if MINMAXHEAP
-	MinMaxHeapPushDown(lcl,1);
+	hashptr = MinMaxHeapPushDown(lcl,1);
+	MinMaxHeapPushUp(lcl,hashptr - lcl->counters);
 	#else
 	MinHeapBubbleDown(lcl,1);
 	#endif
@@ -535,7 +536,7 @@ int LCL_Output(LCL_type * lcl, int thresh,std::vector<std::pair<uint32_t,uint32_
 {
 	int numFrequentElems = 0;
 	#if MINMAXHEAP
-	const int size=lcl->size;
+	const int size = lcl->size;
 	uint32_t curr_node;
 	plf::stack<uint32_t> stack;
 	std::unordered_set <uint32_t> visitedgpars;
@@ -567,6 +568,15 @@ int LCL_Output(LCL_type * lcl, int thresh,std::vector<std::pair<uint32_t,uint32_
 					}
 					if (lcl->counters[ch+1].count >= thresh){
 						stack.push(ch+1);
+					}
+				}
+				else{
+					uint32_t par = curr_node >> 1;
+					if (visitedgpars.find(par) == visitedgpars.end()){
+						if (lcl->counters[par].count >= thresh){
+							stack.push(par);
+							visitedgpars.insert(par);
+						}
 					}
 				}
 			}
@@ -605,7 +615,7 @@ void LCL_ShowHeap(LCL_type * lcl)
 	j=1;
 	for (i=1; i<=lcl->size; i++)
 	{
-		printf("%u ",(int) lcl->counters[i].count);
+		printf("e:%u c:%u ",(int)lcl->counters[i].item, (int) lcl->counters[i].count);
 		if (i==j) 
 		{ 
 			level++;
@@ -627,4 +637,15 @@ void LCL_ShowHeap(LCL_type * lcl)
 	}
 	printf("\n");
 	*/
+}
+
+uint32_t LCL_CountSum(LCL_type * lcl)
+{ // debugging routine to output the sum of the counts
+	int i;
+	LCLweight_t sum=0;
+	for (i=1; i<=lcl->size; i++)
+	{
+		sum+=lcl->counters[i].count;
+	}
+	return sum;
 }
