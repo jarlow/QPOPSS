@@ -448,7 +448,7 @@ void printAccuracyResults(vector<pair<uint32_t,uint32_t>> *sorted_histogram,vect
 }
 void saveAccuracyHistogram(vector<pair<uint32_t,uint32_t>>*sorted_histogram,vector<pair<uint32_t,uint32_t>>*lasttopk,uint64_t sum){
         FILE *fp = fopen("logs/topk_results.txt", "w");
-        //N, K,Phi in first row.
+        //N, K, Phi in first row.
         fprintf(fp,"%lu %d %f\n",sum,K,PHI);
         for (int i = 0; i < sorted_histogram->size(); i++){
             pair<uint32_t,uint32_t> ltopk;
