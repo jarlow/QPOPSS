@@ -16,6 +16,20 @@ bool sortbysecdesc(const pair<uint32_t,uint32_t> &a,
        return a.second>b.second;
 }
 
+uint32_t filterMatrixSum(const FilterStruct *filterMatrix, const int numberOfThreads){
+    uint32_t sum = 0;
+    for (int i=0; i<numberOfThreads; i++){
+        for (int j=0; j<numberOfThreads; j++){
+            auto filter = filterMatrix[i * (numberOfThreads) + j];
+            for (int k=0; k<filter.filterCount; k++){
+                sum += filter.filter_count[k];
+            }
+        }
+    }
+    printf("Filter Matrix Sum: %u\n",sum);
+    return sum;
+}
+
 /*! \brief This function adds the elements in Delegation Filters to the query-result vector.
  * \param tid The thread id of the thread that is calling this function. 
  * \param it The iterator to the query-result vector. 
