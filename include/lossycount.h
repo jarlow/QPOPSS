@@ -64,6 +64,7 @@ int LCL_Output(LCL_type *,int,std::vector<std::pair<uint32_t,uint32_t>>*);
 void LCL_ShowHeap(LCL_type *);
 LCL_type * LCL_Copy(LCL_type *);
 void LCL_CheckHash(LCL_type * lcl, uint32_t item, int hash);
+uint32_t LCL_CountSum(LCL_type * lcl);
 #endif
 
 #endif
