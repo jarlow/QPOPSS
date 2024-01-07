@@ -6,7 +6,7 @@ import numpy as np
 RUNTIME=8 #For how long did each repetition execute?
 
 names = ["spacesaving single", "spacesaving deleg","topkapi"] #["spacesaving single", "spacesaving deleg","topkapi"]
-fancy_names = ["SeqSS","DeSS","Topkapi"] #["Single Space-Saving","Delegation Space-Saving","Topkapi"]
+fancy_names = ["QOSS","QPOPSS","Topkapi"] #["Single Space-Saving","Delegation Space-Saving","Topkapi"]
 
 datasets = ["", "flows_dirA", "flows_dirB"]
 fancy_dataset_names = ["Zipf", "CAIDA Flows DirA", "CAIDA Flows DirB"]
