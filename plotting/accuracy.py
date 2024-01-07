@@ -21,8 +21,8 @@ matplotlib.rcParams.update({'font.size': 18})
 
 # What experiment(s) should we plot?
 vs_N = True
-vs_dfu_dfs = True
-vs_phi = True
+vs_dfu_dfs = False
+vs_phi = False
 vt_phi = True
 
 
@@ -94,25 +94,23 @@ if vs_N:
     fig, ax1 = plt.subplots()
     print(accudf)
     lineplot=sns.lineplot(x="Zipf Parameter", y="Average Relative Error", data=accudf[
-                                         ((accudf["Algorithm"] == "DeSS") |
+                                         ((accudf["Algorithm"] == "QPOPSS") |
                                          (accudf["Algorithm"] == "Topkapi")) &
-                                         ~((accudf["N"] == r"$1\times 10^7$") & (accudf["Zipf Parameter"] == 0.5)) & 
+                                         ~((accudf["N"] == r"$1\times 10^7$") & (accudf["Zipf Parameter"] == 0.5)) & #Remove 0.5 since there are no results for it
                                          ~((accudf["N"] == r"$1\times 10^8$") & (accudf["Zipf Parameter"] == 0.5)) & 
                                          ~((accudf["N"] == r"$1\times 10^6$") & (accudf["Zipf Parameter"] == 0.5))
                                         ],
-                 markersize=10, linewidth=7, markers=True, style="N", hue="Algorithm", palette=palette, ax=ax1)
+                 markersize=24, linewidth=7, markers=True, style="N", hue="Algorithm", palette=palette, ax=ax1)
 
     def rel_err_bound(a, N): return (df_max_sums[0]*24)/N
-    xs = np.arange(0.5, 3.25, 0.25)
     ax1.set_yscale("log")
-    ax1.set_ylim(0.0000001)
 
     leg=lineplot.legend(fontsize=24,
         #bbox_to_anchor=(0.73, 0.53 ,0.3,0.5),
         loc='best',
         ncol=2,
         prop={'weight':'normal'},
-        markerscale=2.5,
+        markerscale=0.4,
         labelspacing=0.05,
         borderpad=0.1,
         handletextpad=0.1,
@@ -121,7 +119,7 @@ if vs_N:
         handleheight=0.5,
         borderaxespad=0,
         columnspacing=0.2)
-    [L.set_linewidth(5.0) for L in leg.legendHandles]
+    [L.set_linewidth(8.0) for L in leg.legendHandles]
     l = Line2D([0],[0],color="w")
     leg.legendHandles.insert(3,l)
     ax1.legend(handles=leg.legendHandles,
@@ -141,8 +139,9 @@ if vs_N:
     )
     ax1.set_xlabel("Zipf Parameter")
     ax1.set_ylabel("Average Relative Error")
+    ax1.set_ylim(0.00000001,1)
     plt.tight_layout()
-    name = "plots/accuracy/vsN/vs_avg_rel_error_DeSS_varyN.svg"
+    name = "plots/accuracy/vsN/vs_avg_rel_error_varyN.svg"
     if saveplots_flag:
         path = os.path.split(name)[:-1][0]
         if not os.path.exists(path):
@@ -345,13 +344,13 @@ if vt_phi:
                                                    #(accudf.Algorithm == "DeSS") & 
                                                     accudf[r"$\phi$"] == r"$1\times 10^{-4}$"
                                                 ],
-                          markersize=13, linewidth=7, markers=True, style="Dataset", ax=ax1, legend='brief',palette=palette)
-    leg=lineplot.legend(fontsize=24,
+                          markersize=24, linewidth=7, markers=True, style="Dataset", ax=ax1, legend='brief',palette=palette)
+    leg=lineplot.legend(fontsize=22,
         #bbox_to_anchor=(0.73, 0.53 ,0.3,0.5),
         loc='best',
         ncol=2,
         prop={'weight':'normal'},
-        markerscale=2.5,
+        markerscale=0.40,
         labelspacing=0.05,
         borderpad=0.1,
         handletextpad=0.1,
@@ -360,13 +359,13 @@ if vt_phi:
         handleheight=0.5,
         borderaxespad=0,
         columnspacing=0.2)
-    [L.set_linewidth(5.0) for L in leg.legendHandles]
+    [L.set_linewidth(8.0) for L in leg.legendHandles]
     #lhs=leg.legendHandles
     l = Line2D([0],[0],color="w")
     leg.legendHandles.insert(3,l)
     #fig.legend(handles=leg.legendHandles, title=r"$\phi$")
     ax1.legend(handles=leg.legendHandles,
-        fontsize=24,
+        fontsize=22,
         loc='best',
         ncol=2,
         prop={'weight':'normal'},
@@ -381,7 +380,7 @@ if vt_phi:
         columnspacing=0.2
     )
     
-    ax1.set_ylim(0.0000001)
+    ax1.set_ylim(0.00000001,1)
     ax1.set_xlabel("Threads")
     ax1.set_ylabel("Average Relative Error")
     ax1.set_yscale("log")
