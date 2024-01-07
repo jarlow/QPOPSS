@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import matplotlib
 import glob
+import os
 from matplotlib.lines import Line2D
 from math import log10,ceil,floor
 from plotters import average_and_std,parse_latency,format_float,RUNTIME,names,fancy_names,datasets,fancy_dataset_names,showplots_flag,saveplots_flag
@@ -16,7 +17,9 @@ vt_phi_qr = True
 # What is the metric?
 latency = True
 
-def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_uniques,df_max_sums,threads,skew_rates,phis,experiment_name,dataset_names,x_axis_name,speedup_flag,maxheap_flag):
+def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_uniques,
+                                 df_max_sums,threads,skew_rates,phis,experiment_name,
+                                 dataset_names,x_axis_name,speedup_flag,maxheap_flag,path_prefix="latency/"):
     columns = ["Zipf Parameter", "Algorithm","Latency","Streamlength",
                 "Queries","df_s","df_u","phi", r"$\phi$",
                 "Query Rate","Speedup","Dataset","Threads"]
@@ -40,12 +43,12 @@ def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_u
                                 for df_max_unique in df_max_uniques:
                                     for z in srs:
                                         if n == ["topkapi"]:
-                                            globname="logs/"+x_axis_name+"_cm_topkapi_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_latency.log"
+                                            globname="logs/" + path_prefix + x_axis_name+"_cm_topkapi_throughput_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_latency.log"
                                         else:
                                             if maxheap_flag:
-                                                globname="logs/"+x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_maxheap_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_latency.log"
+                                                globname="logs/" + path_prefix + x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_min_max_heap_throughput_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_latency.log"
                                             else:
-                                                globname="logs/"+x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_latency.log"
+                                                globname="logs/" + path_prefix + x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_latency.log"
                                         print(globname)
                                         file=glob.glob(globname)[0]
                                         data = parse_latency(file)
@@ -78,14 +81,14 @@ def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_u
 # Vary skew, phi and query rate
 if vs_phi_qr:
     ''' Variables: '''
-    phis = [0.001, 0.0002, 0.0001]
+    phis = [0.0001]
     df_max_uniques = [16]
     df_max_sums = [1000]
     streamlens=[10000000]
-    query_rates = [100, 200]
+    query_rates = [100]
     skew_rates = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]
     ''' ########## '''
-    perfdf=crate_performance_results_df(names,streamlens,query_rates,df_max_uniques,df_max_sums,[24],skew_rates,phis,"phiqr",datasets,"vs",False,True)
+    perfdf=crate_performance_results_df(names,streamlens,query_rates,df_max_uniques,df_max_sums,[24],skew_rates,phis,"phiqr",datasets,"vs",False,True, "latency/vs/")
     if latency:
         matplotlib.rcParams['figure.figsize'] = (6, 5.5) 
         plt.rc('legend', fontsize=26)
@@ -107,9 +110,12 @@ if vs_phi_qr:
         ax1.set_ylim(10,40000)
         ax1.set_xticks(np.arange(0.5,3.5,0.5))
         ax1.set_xticklabels(np.arange(0.5,3.5,0.5))
-        name = "/home/victor/git/Delegation-Space-Saving/plots/skew_latency_0.0001phi_0.01query.svg"
+        name = "plots/latency/vs/skew_latency_0.0001phi_0.01query.svg"
         plt.tight_layout()
         if saveplots_flag:
+            path = os.path.split(name)[:-1][0]
+            if not os.path.exists(path):
+                os.makedirs(path)
             plt.savefig(name, format="svg", dpi=4000)
         if showplots_flag:
             plt.show()
@@ -121,15 +127,15 @@ if vs_phi_qr:
 # Vary threads, phi and query rate
 if vt_phi_qr:
     ''' Variables: '''
-    phis = [0.001, 0.0002,0.0001]
+    phis = [0.0001]
     df_max_uniques = [16]
     df_max_sums = [1000]
     streamlens=[10000000]
-    query_rates = [100, 200]
+    query_rates = [100]
     threads=[4,8,12,16,20,24]
 
     ''' ########## '''
-    perfdf=crate_performance_results_df(names,streamlens,query_rates,df_max_uniques,df_max_sums,threads,[1.25],phis,"phiqr",datasets,"threads",False,True)
+    perfdf=crate_performance_results_df(names,streamlens,query_rates,df_max_uniques,df_max_sums,threads,[1.25],phis,"phiqr",datasets,"threads",False,True, "latency/vt/")
 
     if latency:
         matplotlib.rcParams['figure.figsize'] = (6, 5.5) 
@@ -174,8 +180,11 @@ if vt_phi_qr:
         columnspacing=0.2)
         [L.set_linewidth(5.0) for L in leg.legendHandles]
         plt.tight_layout()
-        name = "/home/victor/git/Delegation-Space-Saving/plots/threads_latency_0.0001phi_0.01query.svg"
+        name = "plots/latency/vt/threads_latency_0.0001phi_0.01query.svg"
         if saveplots_flag:
+            path = os.path.split(name)[:-1][0]
+            if not os.path.exists(path):
+                os.makedirs(path)
             plt.savefig(name, format="svg", dpi=4000)
         if showplots_flag:
             plt.show()
