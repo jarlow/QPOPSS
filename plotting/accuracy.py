@@ -1,5 +1,6 @@
 ''' Main plotting script, plots of most experiments, use bools to control which plots are output'''
 import glob
+import matplotlib.transforms as mtrans
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
@@ -21,8 +22,8 @@ matplotlib.rcParams.update({'font.size': 18})
 
 # What experiment(s) should we plot?
 vs_N = True
-vs_dfu_dfs = False
-vs_phi = False
+vs_dfu_dfs = True
+vs_phi = True
 vt_phi = True
 
 
@@ -267,27 +268,35 @@ if vs_phi:
     matplotlib.rcParams['figure.figsize'] = (6, 5.5) 
     plt.rc('legend', fontsize=26)
     matplotlib.rcParams.update({'font.size': 26})
-
+    accudf.rename(columns={r"$\phi$":"Threshold"},inplace=True)
     fig, ax1 = plt.subplots()
-    lineplot=sns.lineplot(x="Zipf Parameter", y="Precision", data=accudf, markersize=13,
-                 linewidth=7, markers=True, palette="muted", ax=ax1, style=r"$\phi$",hue="Algorithm", legend='brief')
+    lineplot=sns.lineplot(x="Zipf Parameter", y="Precision", data=accudf, markersize=24,
+                 linewidth=7, markers=True, palette="muted", ax=ax1, style="Threshold",hue="Algorithm", legend='brief')
+    lineplot.get_lines()[1].set_alpha(1)
     ax1.set_xlabel("Skew")
     ax1.set_ylabel("Precision")
-    leg=lineplot.legend(fontsize=24,
+    leg=lineplot.legend(fontsize=22,
         loc='best',
         ncol=2,
         prop={'weight':'normal'},
-        markerscale=2.5,
+        markerscale=1,
         labelspacing=0.05,
         borderpad=0.1,
         handletextpad=0.1,
-        framealpha=0.4,
+        framealpha=0.2,
         handlelength=0.5,
         handleheight=0.5,
         borderaxespad=0,
         columnspacing=0.2)
     [L.set_linewidth(5.0) for L in leg.legendHandles]
     plt.tight_layout()
+    lineplot.get_lines()[3].set_alpha(0.3)# Set opacity of QPOPSS on each of the 3 lines
+    lineplot.get_lines()[4].set_alpha(0.3)
+    lineplot.get_lines()[5].set_alpha(0.3)
+    
+    lineplot.get_lines()[6].set_alpha(0.65)# Set opacity of Topkapi on each of the 3 lines
+    lineplot.get_lines()[7].set_alpha(0.65)
+    lineplot.get_lines()[8].set_alpha(0.65)
     name = "plots/accuracy/vs/vs_precision_finalVaryQRPhi.svg"
     if saveplots_flag:
         path = os.path.split(name)[:-1][0]
@@ -301,13 +310,19 @@ if vs_phi:
     plt.close()
     #Recall
     fig, ax1 = plt.subplots()
-    lineplot=sns.lineplot(x="Zipf Parameter", y="Recall", data=accudf, markersize=13,
-                 linewidth=7, markers=True, palette="muted", ax=ax1, style=r"$\phi$",hue="Algorithm", legend=False)
+    lineplot=sns.lineplot(x="Zipf Parameter", y="Recall", data=accudf, markersize=24,
+                 linewidth=7, markers=True, palette="muted", ax=ax1, style="Threshold",hue="Algorithm", legend=False)
     ax1.set_xlabel("Skew")
     ax1.set_ylabel("Recall")
-    plt.tight_layout()
 
     plt.tight_layout()
+    lineplot.get_lines()[3].set_alpha(0.3)# Set opacity of QPOPSS on each of the 3 lines
+    lineplot.get_lines()[4].set_alpha(0.3)
+    lineplot.get_lines()[5].set_alpha(0.3)
+    
+    lineplot.get_lines()[6].set_alpha(0.65)# Set opacity of Topkapi on each of the 3 lines
+    lineplot.get_lines()[7].set_alpha(0.65)
+    lineplot.get_lines()[8].set_alpha(0.65)
     name = "plots/accuracy/vs/vs_recall_finalVaryQRPhi.svg"
     if saveplots_flag:
         path = os.path.split(name)[:-1][0]
