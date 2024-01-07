@@ -83,7 +83,7 @@ phi="0.00001"
 MAX_FILTER_SUMS="100 1000 10000 100000"
 MAX_FILTER_UNIQUES="16 32 64 128"
 streamlengths="100000000"
-beta="0.5"
+beta="0.1"
 versions="cm_spacesaving_deleg_min_max_heap_accuracy"
 ## Vary Skew, df_s and df_u
 echo "------ Vary Skew, df_s and df_u------"
@@ -115,6 +115,7 @@ if [ "$vsdfsdfu" = true ] ; then
                             echo "$N" "$N" $new_columns $rows 1 "$skew" 0 1 $num_thr 0 0 "$calgo_param" $topk_rates $K $phi "$MAX_FILTER_SUM" "$MAX_FILTER_UNIQUE"
                             echo "$output"
                             echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> logs/accuracy/vsdfsdfu/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_${N}_dfsdfu_accuracy.log
+                            echo "$output" >> logs/accuracy/vsdfsdfu/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_${N}_dfsdfu_accuracy_info.log
                         done
                     done
                 done
