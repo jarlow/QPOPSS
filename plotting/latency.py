@@ -97,19 +97,19 @@ if vs_phi_qr:
         fig, ax1 = plt.subplots()
         palette = sns.color_palette(palette="muted")
         #Only orange and green
-        palette = [ (0.9333333333333333, 0.5215686274509804, 0.2901960784313726), (0.41568627450980394, 0.8, 0.39215686274509803)]
+        palette = [ (0.9333333333333333, 0.5215686274509804, 0.2901960784313726), (0.41568627450980394, 0.8, 0.39215686274509803), (0.8392156862745098, 0.37254901960784315, 0.37254901960784315)]
         lineplot=sns.lineplot(x="Zipf Parameter", y="Latency", data=perfdf[
                             (perfdf["Query Rate"] == 0.01) & 
                             (perfdf["Dataset"] == "Zipf") & 
-                            (perfdf["Algorithm"] != "SeqSS") &
-                            (perfdf["phi"] == 0.0001)], markersize=13,
+                            (perfdf["Algorithm"] != "QOSS") &
+                            (perfdf["phi"] == 0.0001)], markersize=24,
                      linewidth=7, linestyle="dashed", marker="s", hue="Algorithm", palette=palette, ax=ax1, legend=False)
         ax1.set_xlabel("Skew")
-        ax1.set_ylabel(r"Latency $\mu$sec (log scale)")
+        ax1.set_ylabel(r"Latency ($\mu$sec)")
         ax1.set_yscale("log")
-        ax1.set_ylim(10,40000)
-        ax1.set_xticks(np.arange(0.5,3.5,0.5))
-        ax1.set_xticklabels(np.arange(0.5,3.5,0.5))
+        ax1.set_ylim(5,40000)
+        #ax1.set_xticks(np.arange(0.5,3.5,0.5))
+        #ax1.set_xticklabels(np.arange(0.5,3.5,0.5))
         name = "plots/latency/vs/skew_latency_0.0001phi_0.01query.svg"
         plt.tight_layout()
         if saveplots_flag:
@@ -150,26 +150,25 @@ if vt_phi_qr:
         palette = [ (0.9333333333333333, 0.5215686274509804, 0.2901960784313726), (0.41568627450980394, 0.8, 0.39215686274509803)]
         lineplot = sns.lineplot(x="Threads", y="Latency", data=perfdf[(perfdf["Query Rate"] == 0.01) & 
                                                                         (perfdf["Dataset"] == "Zipf") & 
-                                                                        (perfdf["Algorithm"] != "SeqSS") &
+                                                                        (perfdf["Algorithm"] != "QOSS") &
                                                                         (perfdf["Threads"] != 1) & 
                                                                         (perfdf["phi"] == 0.0001)
                                                                     ], 
-                        markersize=13, linewidth=7, linestyle="dashed", marker="s",
+                        markersize=24, linewidth=7, linestyle="dashed", marker="s",
                          hue="Algorithm", palette=palette, ax=ax1)
         ax1.set_yscale("log")
         ax1.set_xlabel("Threads")
-        ax1.set_ylabel(r"Latency $\mu$sec (log scale)")
-        ax1.set_ylim(10,40000)
-        ax1.set_xticks(np.arange(4, 28, 4))
-        ax1.set_xticklabels(np.arange(4, 28, 4))
+        ax1.set_ylabel(r"Latency ($\mu$sec)")
+        ax1.set_ylim(5,40000)
+        #ax1.set_xticks(np.arange(4, 28, 4))
+        #ax1.set_xticklabels(np.arange(4, 28, 4))
 
 
-        leg=lineplot.legend(fontsize=24,
-        #bbox_to_anchor=(0.73, 0.53 ,0.3,0.5),
+        leg=lineplot.legend(fontsize=26,
         loc='best',
         ncol=2,
         prop={'weight':'normal'},
-        markerscale=2.5,
+        markerscale=1,
         labelspacing=0.05,
         borderpad=0.1,
         handletextpad=0.1,
@@ -178,7 +177,7 @@ if vt_phi_qr:
         handleheight=0.5,
         borderaxespad=0,
         columnspacing=0.2)
-        [L.set_linewidth(5.0) for L in leg.legendHandles]
+        [L.set_linewidth(8.0) for L in leg.legendHandles]
         plt.tight_layout()
         name = "plots/latency/vt/threads_latency_0.0001phi_0.01query.svg"
         if saveplots_flag:
