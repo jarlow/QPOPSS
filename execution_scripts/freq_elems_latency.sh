@@ -85,7 +85,7 @@ MAX_FILTER_SUMS="1000"
 phis="0.0001"
 #topkqueriesS="0 100 1000"
 topkqueriesS="100"
-versions="cm_spacesaving_single_min_max_heap_throughput" #"cm_spacesaving_deleg_min_max_heap_throughput cm_topkapi_throughput" #"cm_spacesaving_deleg_maxheap cm_spacesaving_single_maxheap cm_topkapi"
+versions="cm_spacesaving_deleg_min_max_heap_throughput cm_topkapi_throughput cm_spacesaving_single_min_max_heap_throughput"
 ## Vary skew with qr and phi
 echo "------ Vary skew, query rate and phi------"
 if [ "$vs" = true ] ; then
@@ -171,7 +171,7 @@ MAX_FILTER_SUMS="1000"
 phis="0.0001"
 #topkqueriesS="0 100 1000"
 topkqueriesS="100"
-versions="cm_spacesaving_single_min_max_heap_throughput" #"cm_spacesaving_deleg_min_max_heap_throughput cm_topkapi_throughput" #"cm_spacesaving_deleg_maxheap cm_spacesaving_single_maxheap cm_topkapi"
+versions="cm_spacesaving_deleg_min_max_heap_throughput cm_topkapi_throughput cm_spacesaving_single_min_max_heap_throughput"
 threads="4 8 12 16 20 24"
 ## Vary threads with skew 1.25
 echo "------ Vary Threads, query rate and phi------"
