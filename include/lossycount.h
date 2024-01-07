@@ -6,7 +6,7 @@
 #define LOSSYCOUNTING_h
 
 #ifndef MINMAXHEAP
-#define MINMAXHEAP 1
+#define MINMAXHEAP 0
 #endif
 
 #include "prng.h"
