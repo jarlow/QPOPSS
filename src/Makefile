@@ -44,10 +44,10 @@ sampling.o: sampling.cpp
 	$(CPP) -c sampling.cpp
 
 lossycount_min_heap.o: lossycount.cpp
-	$(CPP) -c lossycount.cpp -o $@
+	$(CPP) -c lossycount.cpp -DMINMAXHEAP=0 -o $@
 
 lossycount_min_max_heap.o: lossycount.cpp
-	$(CPP) -c lossycount.cpp -D MINMAXHEAP=1 -o $@
+	$(CPP) -c lossycount.cpp -DMINMAXHEAP=1 -o $@
 
 prng.o: prng.cpp
 	$(CPP) -c prng.cpp
