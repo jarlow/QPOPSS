@@ -88,7 +88,7 @@ if vs_N:
     palette = [ (0.9333333333333333, 0.5215686274509804, 0.2901960784313726), (0.41568627450980394, 0.8, 0.39215686274509803)]
     ''' ########## '''
     accudf=crate_accuracy_results_df(algonames,streamlens,df_max_uniques,df_max_sums,[24],skew_rates,phis,"varN",[""],"skew",False,path_prefix="accuracy/vsN/")
-    accudf.rename(columns={"Streamlength":"N"},inplace=True)
+    accudf.rename(columns={"Streamlength":"Length"},inplace=True)
 
     # single has no ARE, so we only plot Delegation Space-Saving ARE:
     fig, ax1 = plt.subplots()
@@ -96,11 +96,11 @@ if vs_N:
     lineplot=sns.lineplot(x="Zipf Parameter", y="Average Relative Error", data=accudf[
                                          ((accudf["Algorithm"] == "QPOPSS") |
                                          (accudf["Algorithm"] == "Topkapi")) &
-                                         ~((accudf["N"] == r"$1\times 10^7$") & (accudf["Zipf Parameter"] == 0.5)) & #Remove 0.5 since there are no results for it
-                                         ~((accudf["N"] == r"$1\times 10^8$") & (accudf["Zipf Parameter"] == 0.5)) & 
-                                         ~((accudf["N"] == r"$1\times 10^6$") & (accudf["Zipf Parameter"] == 0.5))
+                                         ~((accudf["Length"] == r"$1\times 10^7$") & (accudf["Zipf Parameter"] == 0.5)) & #Remove 0.5 since there are no results for it
+                                         ~((accudf["Length"] == r"$1\times 10^8$") & (accudf["Zipf Parameter"] == 0.5)) & 
+                                         ~((accudf["Length"] == r"$1\times 10^6$") & (accudf["Zipf Parameter"] == 0.5))
                                         ],
-                 markersize=24, linewidth=7, markers=True, style="N", hue="Algorithm", palette=palette, ax=ax1)
+                 markersize=24, linewidth=7, markers=True, style="Length", hue="Algorithm", palette=palette, ax=ax1)
 
     def rel_err_bound(a, N): return (df_max_sums[0]*24)/N
     ax1.set_yscale("log")
