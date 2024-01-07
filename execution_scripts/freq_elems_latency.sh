@@ -23,6 +23,7 @@ N=${stream_size}
 rows=4
 new_columns=100
 queries=0
+beta=0.01
 
 ### Which experiments to run?
 vs=true
@@ -84,10 +85,11 @@ MAX_FILTER_SUMS="1000"
 phis="0.0001"
 #topkqueriesS="0 100 1000"
 topkqueriesS="100"
-versions="cm_spacesaving_deleg_maxheap cm_spacesaving_deleg" #"cm_spacesaving_deleg_maxheap cm_spacesaving_single_maxheap cm_topkapi"
+versions="cm_spacesaving_single_min_max_heap_throughput" #"cm_spacesaving_deleg_min_max_heap_throughput cm_topkapi_throughput" #"cm_spacesaving_deleg_maxheap cm_spacesaving_single_maxheap cm_topkapi"
 ## Vary skew with qr and phi
 echo "------ Vary skew, query rate and phi------"
 if [ "$vs" = true ] ; then
+    mkdir -p logs/latency/vs
     for dsname in "${!datasets[@]}"
     do 
         echo "$dsname"
@@ -117,7 +119,7 @@ if [ "$vs" = true ] ; then
                             for skew in $skew_rates
                             do
                                 if [[ "$dsname" == "" ]]; then
-                                    filepath="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${stream_size}.txt"
+                                    filepath="/home/victor/git/DelegationSpace-Saving/datasets/zipf_${skew}_${stream_size}.txt"
                                 fi
                                 eps=$(echo "$phi*$EPSILONratio" | bc -l)
                                 eps=0$eps
@@ -140,9 +142,9 @@ if [ "$vs" = true ] ; then
                                 do
                                     echo "$stream_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topkrates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filepath"
                                     #new_columns=$(((buckets*rows*4 - num_thr*64)/(rows*4))) 
-                                    output=$(./bin/"$version".out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds "$calgo_param" "$topkrates" $K "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filepath) 
+                                    output=$(./bin/"$version".out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds "$calgo_param" "$topkrates" $K "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $beta $filepath) 
                                     echo "$output"
-                                    echo "$output" | grep -oP 'Average latency: (\d+.\d+)' -a --text >> logs/vs_"${version}"_"${num_thr}"_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_phiqr"${dsname}"_latency.log
+                                    echo "$output" | grep -oP 'Average latency: (\d+.\d+)' -a --text >> logs/latency/vs/vs_"${version}"_"${num_thr}"_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_phiqr"${dsname}"_latency.log
                                     if [[ "$version" == *"deleg"* ]]; then
                                         if [[ "$output" =~ $regex ]]; then
                                             if [[ "${BASH_REMATCH[4]}" != *"flows"* ]]; then 
@@ -169,11 +171,12 @@ MAX_FILTER_SUMS="1000"
 phis="0.0001"
 #topkqueriesS="0 100 1000"
 topkqueriesS="100"
-versions="cm_spacesaving_deleg_maxheap cm_spacesaving_deleg" #"cm_spacesaving_deleg_maxheap cm_spacesaving_single_maxheap cm_topkapi"
+versions="cm_spacesaving_single_min_max_heap_throughput" #"cm_spacesaving_deleg_min_max_heap_throughput cm_topkapi_throughput" #"cm_spacesaving_deleg_maxheap cm_spacesaving_single_maxheap cm_topkapi"
 threads="4 8 12 16 20 24"
 ## Vary threads with skew 1.25
 echo "------ Vary Threads, query rate and phi------"
 if [ "$vt" = true ] ; then
+    mkdir -p logs/latency/vt
     for dsname in "${!datasets[@]}"
     do 
         echo "$dsname"
@@ -203,7 +206,7 @@ if [ "$vt" = true ] ; then
                             for num_thr in $thrs
                             do
                                 if [[ "$dsname" == "" ]]; then
-                                    filepath="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${stream_size}.txt"
+                                    filepath="/home/victor/git/DelegationSpace-Saving/datasets/zipf_${skew}_${stream_size}.txt"
                                 fi
                                 eps=$(echo "$phi*$EPSILONratio" | bc -l)
                                 eps=0$eps
@@ -226,9 +229,9 @@ if [ "$vt" = true ] ; then
                                 do
                                     #new_columns=$(((buckets*rows*4 - num_thr*64)/(rows*4))) 
                                     echo "$stream_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topkrates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filepath"
-                                    output=$(./bin/"$version".out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 "$num_thr" $queries $num_seconds "$calgo_param" "$topkrates" $K "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filepath) 
+                                    output=$(./bin/"$version".out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 "$num_thr" $queries $num_seconds "$calgo_param" "$topkrates" $K "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $beta $filepath) 
                                     echo "$output" 
-                                    echo "$output" | grep -oP 'Average latency: (\d+.\d+)' -a --text >> logs/threads_"${version}"_"${num_thr}"_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_phiqr"${dsname}"_latency.log
+                                    echo "$output" | grep -oP 'Average latency: (\d+.\d+)' -a --text >> logs/latency/vt/threads_"${version}"_"${num_thr}"_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_phiqr"${dsname}"_latency.log
                                     if [[ "$version" == *"deleg"* ]]; then
                                         if [[ "$output" =~ $regex ]]; then
                                             if [[ "${BASH_REMATCH[4]}" != *"flows"* ]]; then 
