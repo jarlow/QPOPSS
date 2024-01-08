@@ -146,10 +146,12 @@ LCL_type * LCL_Init(const float fPhi)
 		result->counters[i].next=NULL;
 		result->counters[i].prev=NULL;
 		result->counters[i].item=LCL_NULLITEM;
+		/*
 		#if MAXHEAP
 		result->counters[i].maxheapptr=&(result->maxheap[i]);
 		result->maxheap[i]=&result->counters[i];
 		#endif
+		*/
 		// initialize items and counters to zero
 	}
 
