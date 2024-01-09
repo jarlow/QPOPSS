@@ -58,9 +58,9 @@ def crate_performance_results_df(algorithm_names,streamlens,query_rates,
                                         throughput = parse_throughput(file)
                                         throughputavg, _ = average_and_std(throughput)   
                                         if n == ["topkapi"]:
-                                            globname="logs/latency/vs/"  +"vs"+"_cm_topkapi_throughput_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(100)+"_"+experiment_name+ds+"_latency.log"
+                                            globname="logs/latency/vs/"  +"vs"+"_cm_topkapi_throughput_"+str(t)+"_24"+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(100)+"_"+experiment_name+ds+"_latency.log"
                                         else:
-                                            globname="logs/latency/vs/" + "vs"+"_cm_"+n[0]+"_"+n[1]+"_throughput_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(100)+"_"+experiment_name+ds+"_latency.log"
+                                            globname="logs/latency/vs/" + "vs"+"_cm_"+n[0]+"_"+n[1]+"_throughput_24"+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(100)+"_"+experiment_name+ds+"_latency.log"
                                         
                                         print(globname)
                                         file=glob.glob(globname)[0]
@@ -80,7 +80,7 @@ if vs_phi_qr:
     df_max_uniques = [16]
     df_max_sums = [1000]
     streamlens=[10000000]
-    query_rates = [200]
+    query_rates = [100]
     skew_rates = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]
     names=["spacesaving deleg_min_heap","spacesaving deleg_min_max_heap"]
     fancy_names = ["With SS","With QOSS"]
@@ -95,7 +95,7 @@ if vs_phi_qr:
         # Latency with 0.1% queries deleg:
         fig, ax1 = plt.subplots()
         lineplot=sns.lineplot(x="Zipf Parameter", y="Throughput", data=perfdf[
-                            (perfdf["Query Rate"] == 0.02) & 
+                            (perfdf["Query Rate"] == 0.01) & 
                             (perfdf["Dataset"] == "Zipf") & 
                             (perfdf["phi"] == 0.0001) & 
                             ((perfdf["Algorithm"] == "With QOSS") | (perfdf["Algorithm"] == "With SS"))], 
@@ -134,7 +134,7 @@ if vs_phi_qr:
 
         # Latency with 0.1% queries deleg:
         fig, ax = plt.subplots()
-        sns.lineplot(x="Zipf Parameter", y="Latency", data=perfdf[(perfdf["Query Rate"] == 0.02) & 
+        sns.lineplot(x="Zipf Parameter", y="Latency", data=perfdf[(perfdf["Query Rate"] == 0.01) & 
                                                                   (perfdf["Dataset"] == "Zipf") & 
                                                                   (perfdf["phi"] == 0.0001) & 
                                                                   ((perfdf["Algorithm"] == "With QOSS") | (perfdf["Algorithm"] == "With SS"))], 
@@ -144,7 +144,7 @@ if vs_phi_qr:
         plt.tight_layout()
         #ax.axes.get_legend().remove()
         #ax.yaxis.grid(True,linestyle="--")
-        name = "/home/victor/git/Delegation-Space-Saving/plots/optimization/opt_skew_latency.svg"
+        name = "plots/optimization/opt_skew_latency.svg"
         if saveplots_flag:
             path = os.path.split(name)[:-1][0]
             if not os.path.exists(path):
@@ -165,7 +165,7 @@ if vt_phi_qr:
     df_max_uniques = [16]
     df_max_sums = [1000]
     streamlens=[10000000]
-    query_rates = [200]
+    query_rates = [100]
     threads=[4,8,12,16,20,24]
     names=["spacesaving deleg_min_heap","spacesaving deleg_min_max_heap"]
     fancy_names = ["With SS","With QOSS"]
@@ -174,7 +174,6 @@ if vt_phi_qr:
     ''' ########## '''
     perfdf=crate_performance_results_df(names,streamlens,query_rates,df_max_uniques,df_max_sums,threads,[1.25],phis,"phiqr",datasets,"threads",True, "throughput/vt/")
 
-    print(perfdf)
     if throughput:
         matplotlib.rcParams['figure.figsize'] = (6, 5.5) 
         plt.rc('legend', fontsize=26)
@@ -194,13 +193,13 @@ if vt_phi_qr:
         labels=labels[4:]
         ax.axes.get_legend().remove()
         leg=fig.legend(handles, labels, loc="upper center", ncol=1,fontsize=30)
-        for legobj in leg.legendHandles:
-            legobj.set_linewidth(7)
-            legobj.set_markevery(0.01)
-            legobj.set_markersize(60)
+        #for legobj in leg.legendHandles:
+        #    legobj.set_linewidth(7)
+        #    legobj.set_markevery(0.01)
+        #    legobj.set_markersize(60)
         #plt.subplots_adjust(top=0.83)
         #ax.yaxis.grid(True,linestyle="--")
-        name = "/home/victor/git/Delegation-Space-Saving/plots/optimization/opt_threads_throughput.svg"
+        name = "plots/optimization/opt_threads_throughput.svg"
         if saveplots_flag:
             path = os.path.split(name)[:-1][0]
             if not os.path.exists(path):
@@ -221,9 +220,10 @@ if vt_phi_qr:
                      markersize=24, linewidth=7,style="Dataset", markers=True, hue="Algorithm", palette="muted", marker="s", ax=ax,legend=False)
         plt.xlabel("Threads")
         plt.ylabel(r"Latency ($\mu$sec)")
+        plt.yscale("log")
         plt.tight_layout()
-        
-        name = "/home/victor/git/Delegation-Space-Saving/plots/optimization/opt_threads_latency.svg"
+        print("HEREE!!!")
+        name = "plots/optimization/opt_threads_latency.svg"
         if saveplots_flag:
             path = os.path.split(name)[:-1][0]
             if not os.path.exists(path):
