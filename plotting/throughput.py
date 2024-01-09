@@ -16,14 +16,14 @@ plt.rc('legend', fontsize=18)
 matplotlib.rcParams.update({'font.size': 34})
 
 # What parameter should be varied?
-vs_dfu_dfs = False
+vs_dfu_dfs = True
 vs_phi_qr = True
 vt_phi_qr = True
 
 # What is the metric?
 throughput = True
 
-def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_uniques,df_max_sums,threads,skew_rates,phis,experiment_name,dataset_names,x_axis_name,speedup_flag,maxheap_flag):
+def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_uniques,df_max_sums,threads,skew_rates,phis,experiment_name,dataset_names,x_axis_name,speedup_flag,maxheap_flag, path_prefix="throughput/"):
     columns = ["Zipf Parameter", "Algorithm","Throughput","Streamlength",
                 "Queries","df_s","df_u","phi", r"$\phi$",
                 "Query Rate","Speedup","Dataset","Threads"]
@@ -47,19 +47,19 @@ def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_u
                                 for df_max_unique in df_max_uniques:
                                     for z in srs:
                                         if n == ["topkapi"]:
-                                            globname="logs/"+x_axis_name+"_cm_topkapi_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_throughput.log"
+                                            globname="logs/" + path_prefix + x_axis_name + "_cm_topkapi_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_throughput.log"
                                         else:
                                             if maxheap_flag:
-                                                globname="logs/"+x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_maxheap_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_throughput.log"
+                                                globname="logs/" + path_prefix + x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_maxheap_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_throughput.log"
                                             else:
-                                                globname="logs/"+x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_throughput.log"
+                                                globname="logs/" + path_prefix + x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_throughput_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_throughput.log"
                                         print(globname)
                                         file=glob.glob(globname)[0]
                                         data = parse_throughput(file)
                                         tpavg, tpstd = average_and_std(data)      
                                         speedup = np.nan
                                         if speedup_flag and not n==["topkapi"]:
-                                            if n[1] == "deleg":
+                                            if n[1] == "deleg_min_max_heap":
                                                 single_throughput = perfdf[
                                                         (perfdf["Zipf Parameter"] == z) & 
                                                         (perfdf["Query Rate"] == float(0 if qr==0 else float(qr)/(10000))) & 
@@ -88,12 +88,12 @@ if vs_dfu_dfs:
     phis = [0.0001]
     df_max_uniques = [16, 32, 64, 128]
     df_max_sums = [100, 1000, 10000, 100000]
-    streamlens=[30000000]
+    streamlens=[10000000]
     query_rates = [100]
     skew_rates = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]
     ''' ########## '''
 
-    perfdf=crate_performance_results_df(["spacesaving deleg"],streamlens,query_rates,df_max_uniques,df_max_sums,[24],skew_rates,phis,"dfsdfu",[""],"skew",False,True)
+    perfdf=crate_performance_results_df(["spacesaving deleg_min_max_heap"],streamlens,query_rates,df_max_uniques,df_max_sums,[24],skew_rates,phis,"dfsdfu",[""],"skew",False,False,"throughput/vsdfsdfu/")
     if throughput:
         fig, ax = plt.subplots()
         sns.lineplot(x="Zipf Parameter", y="Throughput", data=perfdf, markersize=10, linewidth=7, markers=True,
@@ -198,7 +198,7 @@ if vs_phi_qr:
     query_rates = [0,100,200]
     skew_rates = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]
     ''' ########## '''
-    perfdf=crate_performance_results_df(names,streamlens,query_rates,df_max_uniques,df_max_sums,[24],skew_rates,phis,"phiqr",datasets,"skew",True,True)
+    perfdf=crate_performance_results_df(names,streamlens,query_rates,df_max_uniques,df_max_sums,[24],skew_rates,phis,"phiqr",datasets,"skew",True,True, "throughput/vs/")
     if throughput:
         throughput_plots("Zipf",1000,24,[0.5,1,1.5,2,2.5,3],np.arange(0.5,3.5,0.5),"Zipf Parameter")
 
@@ -212,7 +212,7 @@ if vt_phi_qr:
     query_rates = [0, 100, 200]
     threads=[4,8,12,16,20,24]
     ''' ########## '''
-    perfdf=crate_performance_results_df(names,streamlens,query_rates,df_max_uniques,df_max_sums,threads,[1.25],phis,"phiqr",datasets,"threads",True,True)
+    perfdf=crate_performance_results_df(names,streamlens,query_rates,df_max_uniques,df_max_sums,threads,[1.25],phis,"phiqr",datasets,"threads",True,True, "throughput/vt/")
     if throughput:
         throughput_plots("CAIDA Flows DirA",250,15,threads,np.arange(4, 28, 4),"Threads")
         throughput_plots("CAIDA Flows DirB",200,15,threads,np.arange(4, 28, 4),"Threads")

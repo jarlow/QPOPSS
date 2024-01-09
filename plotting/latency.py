@@ -103,7 +103,7 @@ if vs_phi_qr:
                             (perfdf["Dataset"] == "Zipf") & 
                             (perfdf["Algorithm"] != "QOSS") &
                             (perfdf["phi"] == 0.0001)], markersize=24,
-                     linewidth=7, linestyle="dashed", marker="s", hue="Algorithm", palette=palette, ax=ax1, legend=False)
+                     linewidth=7, linestyle="dashed", marker="o", hue="Algorithm", palette=palette, ax=ax1, legend=False)
         ax1.set_xlabel("Skew")
         ax1.set_ylabel(r"Latency ($\mu$sec)")
         ax1.set_yscale("log")
@@ -154,7 +154,7 @@ if vt_phi_qr:
                                                                         (perfdf["Threads"] != 1) & 
                                                                         (perfdf["phi"] == 0.0001)
                                                                     ], 
-                        markersize=24, linewidth=7, linestyle="dashed", marker="s",
+                        markersize=24, linewidth=7, linestyle="dashed", marker="o",
                          hue="Algorithm", palette=palette, ax=ax1)
         ax1.set_yscale("log")
         ax1.set_xlabel("Threads")
@@ -165,8 +165,8 @@ if vt_phi_qr:
 
 
         leg=lineplot.legend(fontsize=26,
-        loc='best',
-        ncol=2,
+        loc='upper center',
+        ncol=1,
         prop={'weight':'normal'},
         markerscale=1,
         labelspacing=0.05,
