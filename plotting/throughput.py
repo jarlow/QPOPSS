@@ -109,7 +109,7 @@ if vs_dfu_dfs:
         ax2.set_xlabel('')
         ax2.set_ylabel('')
         ax2.set_xticks([0.5, 0.75, 1])
-        ax.indicate_inset_zoom(ax2, edgecolor="black")
+        #ax.indicate_inset_zoom(ax2, edgecolor="black")
         ax.set_xlabel("Skew")
         ax.set_ylabel("Throughput (Million Inserts/sec)")
         fig.legend(ncol=2, bbox_to_anchor=(0.9, 0.43), loc="center right")
