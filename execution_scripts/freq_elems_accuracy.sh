@@ -184,7 +184,7 @@ if [ "$vsN" = true ] ; then
                                 fi
                             fi
                         done
-                        cp logs/topk_results.txt logs/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_varN_histogram.log
+                        cp logs/topk_results.txt logs/accuracy/vsN/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_varN_histogram.log
                     done
                 done
             done
