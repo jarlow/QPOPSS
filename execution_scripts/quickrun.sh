@@ -72,9 +72,9 @@ rows=4
 
 universe_size="100000000"
 stream_size="100000000"
-skew="2.75"
+skew="1.25"
 num_seconds=0
-EPSILONratio="0.1"
+EPSILONratio="0.5"
 BETAratio="0.1"
 
 
@@ -87,11 +87,11 @@ filename="/home/victor/git/Delegation-Space-Saving/datasets/flows_dirA.txt"
 filename="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${stream_size}.txt"
 topk_rates="0"
 queries="0"
-phi="0.0002"
+phi="0.00001"
 MAX_FILTER_SUM="1000"
 K=1000
-MAX_FILTER_UNIQUES="32"
-versions="cm_spacesaving_deleg_min_max_heap_${2}"
+MAX_FILTER_UNIQUES="16"
+versions="cm_spacesaving_deleg_min_heap_${2}"
 #versions="cm_spacesaving_deleg_min_max_heap_${2}" #cm_spacesaving_deleg_min_heap_${2}" #cm_topkapi_accuracy" #"cm_spacesaving_deleg cm_spacesaving_deleg_maxheap cm_topkapi" #cm_topkapi_accuracy #cm_spacesaving_deleg_accuracy cm_spacesaving_deleg_maxheap_accuracy
 for version in $versions; do
     eps=$(echo "$phi*$EPSILONratio" | bc -l)
@@ -127,4 +127,4 @@ new_columns="100"
 K=1000
 echo "$K"
 echo "$universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topk_rates $K $phi $MAX_FILTER_SUM 64 $beta $filename"
-./bin/cm_spacesaving_single_min_max_heap_throughput.out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds "$calgo_param" $topk_rates $K $phi $MAX_FILTER_SUM 64 $beta $filename
+./bin/cm_spacesaving_single_min_max_heap_accuracy.out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds "$calgo_param" $topk_rates $K $phi $MAX_FILTER_SUM 64 $beta $filename

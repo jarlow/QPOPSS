@@ -108,7 +108,7 @@ if [ "$vsdfsdfu" = true ] ; then
                         echo "N: $N"
                         for rep in $num_reps
                         do
-                            filename="/home/victor/git/DelegationSpace-Saving/datasets/zipf_${skew}_${N}.txt"
+                            filename="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${N}.txt"
                             echo "rep: $rep"
                             new_columns=4
                             output=$(./bin/"$version".out "$N" "$N" $new_columns $rows 1 "$skew" 0 1 $num_thr 0 0 "$calgo_param" $topk_rates $K $phi "$MAX_FILTER_SUM" "$MAX_FILTER_UNIQUE" "$beta" "$filename")

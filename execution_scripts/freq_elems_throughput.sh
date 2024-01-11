@@ -32,8 +32,8 @@ vt=true
 ### Sources of data
 declare -A datasets
 datasets[" "]=""
-datasets["flows_dirA"]="/home/victor/git/DelegationSpace-Saving/datasets/flows_dirA.txt"
-datasets["flows_dirB"]="/home/victor/git/DelegationSpace-Saving/datasets/flows_dirB.txt"
+datasets["flows_dirA"]="/home/victor/git/Delegation-Space-Saving/datasets/flows_dirA.txt"
+datasets["flows_dirB"]="/home/victor/git/Delegation-Space-Saving/datasets/flows_dirB.txt"
 
 K="55555"
 EPSILONratio="0.1"
@@ -113,7 +113,7 @@ if [ "$vsdfsdfu" = true ] ; then
                         do
                             for _ in $num_reps
                             do
-                                filename="/home/victor/git/DelegationSpace-Saving/datasets/zipf_${skew}_${N}.txt"
+                                filename="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${N}.txt"
                                 echo "$universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topkrates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUE $beta $filename"
                                 output=$(./bin/$version.out $universe_size $stream_size $new_columns $rows 1 "$skew" 0 1 $num_thr $queries $num_seconds "$calgo_param" $topkrates $K $phi "$MAX_FILTER_SUM" "$MAX_FILTER_UNIQUE" $beta $filename) 
                                 echo "$output" | grep -oP 'Total processing throughput [+-]?[0-9]+([.][0-9]+)?+' -a --text >> logs/throughput/vsdfsdfu/skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_dfsdfu_throughput.log
@@ -164,7 +164,7 @@ if [ "$vs" = true ] ; then
                             for skew in $skew_rates
                             do
                                 if [[ "$dsname" == "" ]]; then
-                                    filepath="/home/victor/git/DelegationSpace-Saving/datasets/zipf_${skew}_${stream_size}.txt"
+                                    filepath="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${stream_size}.txt"
                                 fi
                                 eps=$(echo "$phi*$EPSILONratio" | bc -l)
                                 eps=0$eps
@@ -250,7 +250,7 @@ if [ "$vt" = true ] ; then
                             for num_thr in $thrs
                             do
                                 if [[ "$dsname" == "" ]]; then
-                                    filepath="/home/victor/git/DelegationSpace-Saving/datasets/zipf_${skew}_${stream_size}.txt"
+                                    filepath="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${stream_size}.txt"
                                 fi
                                 eps=$(echo "$phi*$EPSILONratio" | bc -l)
                                 eps=0$eps
