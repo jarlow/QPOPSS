@@ -8,7 +8,8 @@ import glob
 import os
 from matplotlib.lines import Line2D
 from math import log10,ceil,floor
-from plotters import average_and_std,parse_latency,format_float,RUNTIME,names,fancy_names,datasets,fancy_dataset_names,showplots_flag,saveplots_flag
+from plotters import create_dirpath_if_not_exists,average_and_std,parse_latency,format_float,\
+                    RUNTIME,names,fancy_names,datasets,fancy_dataset_names,showplots_flag,saveplots_flag
 
 # What parameter should be varied?
 vs_phi_qr = True
@@ -113,9 +114,7 @@ if vs_phi_qr:
         name = "plots/latency/vs/skew_latency_0.0001phi_0.01query.svg"
         plt.tight_layout()
         if saveplots_flag:
-            path = os.path.split(name)[:-1][0]
-            if not os.path.exists(path):
-                os.makedirs(path)
+            create_dirpath_if_not_exists(name)
             plt.savefig(name, format="svg", dpi=4000)
         if showplots_flag:
             plt.show()
@@ -181,9 +180,7 @@ if vt_phi_qr:
         plt.tight_layout()
         name = "plots/latency/vt/threads_latency_0.0001phi_0.01query.svg"
         if saveplots_flag:
-            path = os.path.split(name)[:-1][0]
-            if not os.path.exists(path):
-                os.makedirs(path)
+            create_dirpath_if_not_exists(name)
             plt.savefig(name, format="svg", dpi=4000)
         if showplots_flag:
             plt.show()

@@ -8,7 +8,8 @@ import glob
 import os
 from matplotlib.lines import Line2D
 from math import log10
-from plotters import average_and_std,parse_latency,format_float,RUNTIME,names,fancy_names,datasets,fancy_dataset_names, parse_throughput,showplots_flag,saveplots_flag
+from plotters import create_dirpath_if_not_exists,average_and_std,parse_latency,format_float,parse_throughput, \
+                        RUNTIME,names,fancy_names,datasets,fancy_dataset_names,showplots_flag,saveplots_flag
 
 #Matplotlib aesthetic parameters:
 matplotlib.rcParams['figure.figsize'] = (8, 7)  # Dense info resolution
@@ -122,9 +123,7 @@ if vs_phi_qr:
         #ax.yaxis.grid(True,linestyle="--")
         name = "plots/optimization/opt_skew_throughput.svg"
         if saveplots_flag:
-            path = os.path.split(name)[:-1][0]
-            if not os.path.exists(path):
-                os.makedirs(path)
+            create_dirpath_if_not_exists(name)
             plt.savefig(name, format="svg", dpi=4000)
         if showplots_flag:
             plt.show()
@@ -146,9 +145,7 @@ if vs_phi_qr:
         #ax.yaxis.grid(True,linestyle="--")
         name = "plots/optimization/opt_skew_latency.svg"
         if saveplots_flag:
-            path = os.path.split(name)[:-1][0]
-            if not os.path.exists(path):
-                os.makedirs(path)
+            create_dirpath_if_not_exists(name)
             plt.savefig(name, format="svg", dpi=4000)
             plt.savefig(name, format="svg", dpi=4000)
         if showplots_flag:
@@ -201,10 +198,7 @@ if vt_phi_qr:
         #ax.yaxis.grid(True,linestyle="--")
         name = "plots/optimization/opt_threads_throughput.svg"
         if saveplots_flag:
-            path = os.path.split(name)[:-1][0]
-            if not os.path.exists(path):
-                os.makedirs(path)
-            plt.savefig(name, format="svg", dpi=4000)
+            create_dirpath_if_not_exists(name)
             plt.savefig(name, format="svg", dpi=4000)
         if showplots_flag:
             plt.show()
@@ -222,13 +216,9 @@ if vt_phi_qr:
         plt.ylabel(r"Latency ($\mu$sec)")
         plt.yscale("log")
         plt.tight_layout()
-        print("HEREE!!!")
         name = "plots/optimization/opt_threads_latency.svg"
         if saveplots_flag:
-            path = os.path.split(name)[:-1][0]
-            if not os.path.exists(path):
-                os.makedirs(path)
-            plt.savefig(name, format="svg", dpi=4000)
+            create_dirpath_if_not_exists(name)
             plt.savefig(name, format="svg", dpi=4000)
         if showplots_flag:
             plt.show()

@@ -1,12 +1,13 @@
 import pandas as pd
 from math import ceil
 import numpy as np
+import os
 
 ''' Constants '''
 RUNTIME=10 #For how long did each repetition execute?
 
-names = ["spacesaving single", "spacesaving deleg","topkapi"] #["spacesaving single", "spacesaving deleg","topkapi"]
-fancy_names = ["QOSS","QPOPSS","Topkapi"] #["Single Space-Saving","Delegation Space-Saving","Topkapi"]
+names = ["spacesaving single_min_max_heap", "spacesaving deleg_min_max_heap","topkapi", "spacesaving deleg_min_max_heap"] #["spacesaving single", "spacesaving deleg","topkapi"]
+fancy_names = ["QOSS","QPOPSS","Topkapi", "QPOPSS"] #["Single Space-Saving","Delegation Space-Saving","Topkapi"]
 
 datasets = ["", "flows_dirA", "flows_dirB"]
 fancy_dataset_names = ["Zipf", "CAIDA Flows DirA", "CAIDA Flows DirB"]
@@ -14,6 +15,11 @@ fancy_dataset_names = ["Zipf", "CAIDA Flows DirA", "CAIDA Flows DirB"]
 showplots_flag = False
 saveplots_flag = True
 ''' ######### '''
+
+def create_dirpath_if_not_exists(name):
+    path = os.path.split(name)[:-1][0]
+    if not os.path.exists(path):
+        os.makedirs(path)
 
 def parse_throughput(filename):
     returnList = []  
