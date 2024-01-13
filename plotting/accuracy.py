@@ -12,7 +12,7 @@ import numpy as np
 from scipy.special import zeta
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.lines import Line2D
-from plotters import create_dirpath_if_not_exists,average_and_std,parse_accuracy,parse_memory,format_float,\
+from plotters import create_parent_dir_if_not_exists,average_and_std,parse_accuracy,parse_memory,format_float,\
                         saveplots_flag,showplots_flag,datasets,fancy_dataset_names,names,fancy_names
 
 #Matplotlib aesthetic parameters:
@@ -145,7 +145,7 @@ if vs_N:
     plt.tight_layout()
     name = "plots/accuracy/vsN/vs_avg_rel_error_varyN.svg"
     if saveplots_flag:
-        create_dirpath_if_not_exists(name)
+        create_parent_dir_if_not_exists(name)
         plt.savefig(name, format="svg", dpi=4000)
     if showplots_flag:
         plt.show()
@@ -193,7 +193,7 @@ if vs_dfu_dfs:
     plt.tight_layout()
     name = "plots/accuracy/vsdfudfs/vs_avgrel_finalVarydfsdfu.svg"
     if saveplots_flag:
-        create_dirpath_if_not_exists(name)
+        create_parent_dir_if_not_exists(name)
         plt.savefig(name, format="svg", dpi=4000)
     if showplots_flag:
         plt.show()
@@ -216,7 +216,7 @@ if vs_dfu_dfs:
 
     name = "plots/accuracy/vsdfudfs/vs_precision_finalVarydfsdfu.svg"
     if saveplots_flag:
-        create_dirpath_if_not_exists(name)
+        create_parent_dir_if_not_exists(name)
         plt.savefig(name, format="svg", dpi=4000)
     if showplots_flag:
         plt.show()
@@ -239,7 +239,7 @@ if vs_dfu_dfs:
 
     name = "plots/accuracy/vsdfudfs/vs_recall_finalVarydfsdfu.svg"
     if saveplots_flag:
-        create_dirpath_if_not_exists(name)
+        create_parent_dir_if_not_exists(name)
         plt.savefig(name, format="svg", dpi=4000)
     if showplots_flag:
         plt.show()
@@ -292,7 +292,7 @@ if vs_phi:
     lineplot.get_lines()[8].set_alpha(0.65)
     name = "plots/accuracy/vs/vs_precision_finalVaryQRPhi.svg"
     if saveplots_flag:
-        create_dirpath_if_not_exists(name)
+        create_parent_dir_if_not_exists(name)
         plt.savefig(name, format="svg", dpi=4000, bbox_inches='tight')
     if showplots_flag:
         plt.show()
@@ -316,7 +316,7 @@ if vs_phi:
     lineplot.get_lines()[8].set_alpha(0.65)
     name = "plots/accuracy/vs/vs_recall_finalVaryQRPhi.svg"
     if saveplots_flag:
-        create_dirpath_if_not_exists(name)
+        create_parent_dir_if_not_exists(name)
         plt.savefig(name, format="svg", dpi=4000, bbox_inches='tight')
     if showplots_flag:
         plt.show()
@@ -391,7 +391,7 @@ if vt_phi:
     plt.tight_layout()
     name = "plots/accuracy/vt/vt_avgre_final.svg"
     if saveplots_flag:
-        create_dirpath_if_not_exists(name)
+        create_parent_dir_if_not_exists(name)
         plt.savefig(name, format="svg", dpi=4000)
     if showplots_flag:
         plt.show()
@@ -416,7 +416,7 @@ if vt_phi:
     plt.subplots_adjust(top=0.83)
     name = "plots/accuracy/vt/vt_precision_and_avgre_final.svg"
     if saveplots_flag:
-        create_dirpath_if_not_exists(name)
+        create_parent_dir_if_not_exists(name)
         plt.savefig(name, format="svg", dpi=4000)
     if showplots_flag:
         plt.show()

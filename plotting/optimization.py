@@ -8,7 +8,7 @@ import glob
 import os
 from matplotlib.lines import Line2D
 from math import log10
-from plotters import create_dirpath_if_not_exists,average_and_std,parse_latency,format_float,parse_throughput, \
+from plotters import create_parent_dir_if_not_exists,average_and_std,parse_latency,format_float,parse_throughput, \
                         RUNTIME,names,fancy_names,datasets,fancy_dataset_names,showplots_flag,saveplots_flag
 
 #Matplotlib aesthetic parameters:
@@ -123,7 +123,7 @@ if vs_phi_qr:
         #ax.yaxis.grid(True,linestyle="--")
         name = "plots/optimization/opt_skew_throughput.svg"
         if saveplots_flag:
-            create_dirpath_if_not_exists(name)
+            create_parent_dir_if_not_exists(name)
             plt.savefig(name, format="svg", dpi=4000)
         if showplots_flag:
             plt.show()
@@ -145,7 +145,7 @@ if vs_phi_qr:
         #ax.yaxis.grid(True,linestyle="--")
         name = "plots/optimization/opt_skew_latency.svg"
         if saveplots_flag:
-            create_dirpath_if_not_exists(name)
+            create_parent_dir_if_not_exists(name)
             plt.savefig(name, format="svg", dpi=4000)
             plt.savefig(name, format="svg", dpi=4000)
         if showplots_flag:
@@ -198,7 +198,7 @@ if vt_phi_qr:
         #ax.yaxis.grid(True,linestyle="--")
         name = "plots/optimization/opt_threads_throughput.svg"
         if saveplots_flag:
-            create_dirpath_if_not_exists(name)
+            create_parent_dir_if_not_exists(name)
             plt.savefig(name, format="svg", dpi=4000)
         if showplots_flag:
             plt.show()
@@ -218,7 +218,7 @@ if vt_phi_qr:
         plt.tight_layout()
         name = "plots/optimization/opt_threads_latency.svg"
         if saveplots_flag:
-            create_dirpath_if_not_exists(name)
+            create_parent_dir_if_not_exists(name)
             plt.savefig(name, format="svg", dpi=4000)
         if showplots_flag:
             plt.show()

@@ -16,7 +16,7 @@ showplots_flag = False
 saveplots_flag = True
 ''' ######### '''
 
-def create_dirpath_if_not_exists(name):
+def create_parent_dir_if_not_exists(name):
     path = os.path.split(name)[:-1][0]
     if not os.path.exists(path):
         os.makedirs(path)

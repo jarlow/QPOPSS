@@ -5,9 +5,9 @@ import numpy as np
 import pandas as pd
 import glob
 from matplotlib.lines import Line2D
-import matplotlib as mpl
-from math import log10,ceil,floor
-from plotters import average_and_std,parse_throughput,format_float,RUNTIME,names,fancy_names,datasets,fancy_dataset_names,showplots_flag,saveplots_flag
+from math import log10,floor
+from plotters import create_parent_dir_if_not_exists,average_and_std,parse_throughput,format_float, \
+                        RUNTIME,names,fancy_names,datasets,fancy_dataset_names,showplots_flag,saveplots_flag
 
 #Matplotlib aesthetic parameters:
 matplotlib.rcParams['figure.figsize'] = (10, 7)  # Dense info resolution
@@ -113,8 +113,9 @@ if vs_dfu_dfs:
         ax.set_xlabel("Skew")
         ax.set_ylabel("Throughput (Million Inserts/sec)")
         fig.legend(ncol=2, bbox_to_anchor=(0.9, 0.43), loc="center right")
-        name = "plots/vs_performance_throughput_final_dfu_dfs.svg"
+        name = "plots/throughput/vsdfudfs/vs_performance_throughput_final_dfu_dfs.svg"
         if saveplots_flag:
+            create_parent_dir_if_not_exists(name)
             plt.savefig(name, format="svg", dpi=4000)
         if showplots_flag:
             plt.show()
@@ -143,9 +144,10 @@ def generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabel
     ax2.set_ylim(0,ylim_speedup_max)
     ax2_legend_function(lineplot2,ax2)
     plt.tight_layout()
-    name = "/home/victor/git/Delegation-Space-Saving/plots/"+dataset+"_"+xaxis_string+"_performance_throughput_finalphiqr_"+str(query_rate)+"_quer.svg"
+    name = "/plots/throughput/"+dataset+"_"+xaxis_string+"_performance_throughput_finalphiqr_"+str(query_rate)+"_quer.svg"
     plt.savefig(name, format="svg", dpi=4000)
     if saveplots_flag:
+        create_parent_dir_if_not_exists(name)
         plt.savefig(name, format="svg", dpi=4000)
     if showplots_flag:
         plt.show()
@@ -181,7 +183,7 @@ def algo_legend(lineplot):
 def throughput_plots(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string):
     #Throughput with 0 queries:
 
-    #generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,0,lambda x1: (),speedup_legend)
+    generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,0,lambda x1: (),speedup_legend)
     generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,0.01,lambda x1: (),lambda x1,x2 : ())
     generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,0.02,algo_legend,lambda x1,x2 : ())
 
