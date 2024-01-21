@@ -73,9 +73,9 @@
 #define ITHACA 0
 #endif
 
-#define PREINSERT 1
-#define LATENCY 1
-#define QUERY_FILTERCOUNTS 0
+#define PREINSERT 1 // Preinsert by default if not doing an ACCURACY experiment.
+#define LATENCY 1 // Measure latency by default if not doing an ACCURACY experiment.
+#define QUERY_FILTERCOUNTS 0 // Count the elements inside delegation filters when querying.
 
 
 
