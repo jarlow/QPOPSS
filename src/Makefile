@@ -3,10 +3,10 @@ CPP = g++ -O2 -Wno-deprecated -pthread -g -std=c++11 $(INCLUDE) -DITHACA=$(ITHAC
 CPPDEBUG = g++ -O2 -Wno-deprecated -pthread -std=c++11 -g $(INCLUDE)
 BIN = ../bin
 
-all: freq_elems_throughput freq_elems_accuracy freq_elems_prif freq_elems_prif_accuracy
+all: freq_elems_throughput freq_elems_accuracy freq_elems_prif_throughput freq_elems_prif_accuracy
 freq_elems_throughput: cm_spacesaving_deleg_min_heap_throughput.out cm_spacesaving_deleg_min_max_heap_throughput.out cm_spacesaving_single_min_heap_throughput.out cm_spacesaving_single_min_max_heap_throughput.out cm_topkapi_throughput.out prif.out
 freq_elems_accuracy: cm_spacesaving_deleg_min_heap_accuracy.out cm_spacesaving_deleg_min_max_heap_accuracy.out cm_spacesaving_single_min_heap_accuracy.out cm_spacesaving_single_min_max_heap_accuracy.out cm_topkapi_accuracy.out prif_accuracy.out
-freq_elems_prif: prif.out
+freq_elems_prif_throughput: prif_throughput.out
 freq_elems_prif_accuracy: prif_accuracy.out
 generate_data: generate_synthetic_data.out
 
@@ -182,7 +182,7 @@ cm_topkapi_accuracy.out: relation.o xis.o sketches.o cm_topkapi_accuracy.o lossy
 	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o cm_topkapi_accuracy.o lossycount_min_heap.o prng.o rand48.o lossycountminsketch.o owfrequent.o bufferseminit.o 
 
 ##Prif 
-prif.out: prif.o relation.o xis.o sketches.o lossycount_min_heap.o prng.o rand48.o lossycountminsketch.o owfrequent.o bufferseminit.o 
+prif_throughput.out: prif.o relation.o xis.o sketches.o lossycount_min_heap.o prng.o rand48.o lossycountminsketch.o owfrequent.o bufferseminit.o 
 	$(CPP) -o ${BIN}/$@ relation.o xis.o sketches.o prif.o lossycount_min_heap.o prng.o rand48.o lossycountminsketch.o owfrequent.o bufferseminit.o 
 
 prif_accuracy.out: prif_accuracy.o relation.o xis.o sketches.o lossycount_min_heap.o prng.o rand48.o lossycountminsketch.o owfrequent.o bufferseminit.o 
