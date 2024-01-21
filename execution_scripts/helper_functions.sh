@@ -1,5 +1,4 @@
 #!/bin/bash
-
 num_counters_deleg (){
     eps=$1
     a=$2
