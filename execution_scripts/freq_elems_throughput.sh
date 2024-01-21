@@ -1,11 +1,11 @@
 #!/bin/bash
 CURR_DIR=$(dirname "$0")
 REPO_DIR=$(readlink -f "${CURR_DIR}/..")
-source $(dirname $0)/helper_functions.sh
+source "$(dirname "$0")/helper_functions.sh"
 
-compile=$1
+SHOULD_COMPILE=$1
 
-if [ "$compile" = "1" ]; then 
+if [ "$SHOULD_COMPILE" = "1" ]; then 
     compile "$REPO_DIR/src" "throughput"
 fi
 
@@ -30,8 +30,8 @@ vt=true
 ### Sources of data
 declare -A datasets
 datasets[" "]=""
-datasets["flows_dirA"]="/home/victor/git/Delegation-Space-Saving/datasets/flows_dirA.txt"
-datasets["flows_dirB"]="/home/victor/git/Delegation-Space-Saving/datasets/flows_dirB.txt"
+datasets["flows_dirA"]="${REPO_DIR}/datasets/flows_dirA.txt"
+datasets["flows_dirB"]="${REPO_DIR}/datasets/flows_dirB.txt"
 
 K="55555"
 EPSILONratio="0.1"
@@ -49,7 +49,7 @@ topkqueriesS="100"
 versions="cm_spacesaving_deleg_min_max_heap_throughput"
 echo "------ Vary Skew, df_s and df_u ------"
 if [ "$vsdfsdfu" = true ] ; then
-    mkdir -p logs/throughput/vsdfsdfu
+    mkdir -p "${REPO_DIR}/logs/throughput/vsdfsdfu"
     for version in $versions
     do
         if [[ "$version" == *"single"* ]]; then 
@@ -57,7 +57,7 @@ if [ "$vsdfsdfu" = true ] ; then
         else
             num_thr="24"
         fi
-        echo $version
+        echo "$version"
         for MAX_FILTER_UNIQUE in $MAX_FILTER_UNIQUES
         do
             for MAX_FILTER_SUM in $MAX_FILTER_SUMS
@@ -70,10 +70,10 @@ if [ "$vsdfsdfu" = true ] ; then
                         do
                             for _ in $num_reps
                             do
-                                filename="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${N}.txt"
+                                filename="${REPO_DIR}/datasets/zipf_${skew}_${N}.txt"
                                 echo "$universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topkrates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUE $beta $filename"
-                                output=$(./bin/$version.out $universe_size $stream_size $new_columns $rows 1 "$skew" 0 1 $num_thr $queries $num_seconds "$calgo_param" $topkrates $K $phi "$MAX_FILTER_SUM" "$MAX_FILTER_UNIQUE" $beta $filename) 
-                                echo "$output" | grep -oP 'Total processing throughput [+-]?[0-9]+([.][0-9]+)?+' -a --text >> logs/throughput/vsdfsdfu/skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_dfsdfu_throughput.log
+                                output=$("${REPO_DIR}"/bin/"$version".out $universe_size $stream_size $new_columns $rows 1 "$skew" 0 1 $num_thr $queries $num_seconds "$calgo_param" "$topkrates" $K "$phi" "$MAX_FILTER_SUM" "$MAX_FILTER_UNIQUE" "$beta" "$filename") 
+                                echo "$output" | grep -oP 'Total processing throughput [+-]?[0-9]+([.][0-9]+)?+' -a --text >> "${REPO_DIR}"/logs/throughput/vsdfsdfu/skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_dfsdfu_throughput.log
                             done
                         done                     
                     done
@@ -121,7 +121,7 @@ if [ "$vs" = true ] ; then
                             for skew in $skew_rates
                             do
                                 if [[ "$dsname" == "" ]]; then
-                                    filepath="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${stream_size}.txt"
+                                    filepath="${REPO_DIR}/datasets/zipf_${skew}_${stream_size}.txt"
                                 fi
                                 eps=$(echo "$phi*$EPSILONratio" | bc -l)
                                 eps=0$eps
@@ -147,8 +147,8 @@ if [ "$vs" = true ] ; then
                                 for _ in $num_reps
                                 do
                                     echo "$stream_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topkrates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filepath"
-                                    output=$(./bin/"$version".out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds "$calgo_param" "$topkrates" $K "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $beta $filepath) 
-                                    echo "$output" | grep -oP 'Total processing throughput [+-]?[0-9]+([.][0-9]+)?+' -a --text >> logs/throughput/vs/skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_phiqr"${dsname}"_throughput.log
+                                    output=$("${REPO_DIR}"/bin/"$version".out $universe_size $stream_size "$new_columns" $rows 1 "$skew" 0 1 $num_thr $queries $num_seconds "$calgo_param" "$topkrates" "$K" "$phi" "$MAX_FILTER_SUM" $MAX_FILTER_UNIQUES "$beta" "$filepath") 
+                                    echo "$output" | grep -oP 'Total processing throughput [+-]?[0-9]+([.][0-9]+)?+' -a --text >> "${REPO_DIR}"/logs/throughput/vs/skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_phiqr"${dsname}"_throughput.log
                                     echo "$output"
                                     if [[ "$version" == *"deleg"* ]]; then
                                         if [[ "$output" =~ $regex ]]; then
@@ -181,7 +181,7 @@ threads="4 8 12 16 20 24"
 ## Vary threads with skew 1.25
 echo "------ Vary Threads, query rate and phi------"
 if [ "$vt" = true ] ; then
-    mkdir -p logs/throughput/vt
+    mkdir -p "${REPO_DIR}/logs/throughput/vt"
     for dsname in "${!datasets[@]}"
     do 
         echo "$dsname"
@@ -211,7 +211,7 @@ if [ "$vt" = true ] ; then
                             for num_thr in $thrs
                             do
                                 if [[ "$dsname" == "" ]]; then
-                                    filepath="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${stream_size}.txt"
+                                    filepath="${REPO_DIR}/datasets/zipf_${skew}_${stream_size}.txt"
                                 fi
                                 eps=$(echo "$phi*$EPSILONratio" | bc -l)
                                 eps=0$eps
@@ -222,9 +222,9 @@ if [ "$vt" = true ] ; then
                                 elif [[ "$version" == *"prif"* ]]; then
                                     calgo_param=$(num_counters_prif "$eps" "$num_thr" "$beta")
                                 else
-                                    calgo_param=$(num_counters_deleg "$eps" "$skew" $num_thr)
+                                    calgo_param=$(num_counters_deleg "$eps" "$skew" "$num_thr")
                                 fi
-                                dss_counters=$(num_counters_deleg "$eps" "$skew" $num_thr)
+                                dss_counters=$(num_counters_deleg "$eps" "$skew" "$num_thr")
                                 dss_counters=$(( dss_counters*num_thr ))
 
                                 if [[ "$version" == *"topkapi"* ]]; then
@@ -237,8 +237,8 @@ if [ "$vt" = true ] ; then
                                 do
                                     #new_columns=$(((buckets*rows*4 - num_thr*64)/(rows*4))) 
                                     echo "$stream_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topkrates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $filepath"
-                                    output=$(./bin/"$version".out $universe_size $stream_size $new_columns $rows 1 $skew 0 1 "$num_thr" $queries $num_seconds "$calgo_param" "$topkrates" $K "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $beta $filepath) 
-                                    echo "$output" | grep -oP 'Total processing throughput [+-]?[0-9]+([.][0-9]+)?+' -a --text >> logs/throughput/vt/threads_"${version}"_"${num_thr}"_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_phiqr"${dsname}"_throughput.log
+                                    output=$("${REPO_DIR}"/bin/"$version".out $universe_size $stream_size "$new_columns" $rows 1 $skew 0 1 "$num_thr" $queries $num_seconds "$calgo_param" "$topkrates" "$K" "$phi" "$MAX_FILTER_SUM" $MAX_FILTER_UNIQUES "$beta" "$filepath") 
+                                    echo "$output" | grep -oP 'Total processing throughput [+-]?[0-9]+([.][0-9]+)?+' -a --text >> "${REPO_DIR}"/logs/throughput/vt/threads_"${version}"_"${num_thr}"_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_"${topkrates}"_phiqr"${dsname}"_throughput.log
                                     echo "$output" 
                                     if [[ "$version" == *"deleg"* ]]; then
                                         if [[ "$output" =~ $regex ]]; then

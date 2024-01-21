@@ -3,10 +3,10 @@ CURR_DIR=$(dirname "$0")
 REPO_DIR=$(readlink -f "${CURR_DIR}/..")
 source "$(dirname "$0")/helper_functions.sh"
 
-should_compile=$1
+SHOULD_COMPILE=$1
 TYPE=$2
 
-if [ "$should_compile" = "1" ]; then
+if [ "$SHOULD_COMPILE" = "1" ]; then
     compile "$REPO_DIR/src" "$TYPE"
 fi
 
@@ -60,7 +60,7 @@ for version in $versions; do
     echo "counters per thread: ${calgo_param}"
     echo -e "${RED} ${version} ${NC}"
     echo "$universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topk_rates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $beta $filename"
-    "${REPO_DIR}/bin/$version.out" $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topk_rates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES $beta $filename
+    "${REPO_DIR}/bin/$version.out" $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds "$calgo_param" $topk_rates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES "$beta" "$filename"
 done
 
 eps=$(echo "$phi*$EPSILONratio" | bc -l)
@@ -75,4 +75,4 @@ new_columns="100"
 K=1000
 echo "$K"
 echo "$universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds $calgo_param $topk_rates $K $phi $MAX_FILTER_SUM 64 $beta $filename"
-"${REPO_DIR}/bin/cm_spacesaving_single_min_max_heap_${TYPE}.out" $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds "$calgo_param" $topk_rates $K $phi $MAX_FILTER_SUM 64 $beta $filename
+"${REPO_DIR}/bin/cm_spacesaving_single_min_max_heap_${TYPE}.out" $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds "$calgo_param" $topk_rates $K $phi $MAX_FILTER_SUM 64 "$beta" "$filename"

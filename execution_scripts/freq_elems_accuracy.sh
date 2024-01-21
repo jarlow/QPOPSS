@@ -1,11 +1,11 @@
 #!/bin/bash
 CURR_DIR=$(dirname "$0")
 REPO_DIR=$(readlink -f "${CURR_DIR}/..")
-source $(dirname $0)/helper_functions.sh
+source "$(dirname "$0")/helper_functions.sh"
 
-compile=$1
+SHOULD_COMPILE=$1
 
-if [ "$compile" = "1" ]; then 
+if [ "$SHOULD_COMPILE" = "1" ]; then
     compile "$REPO_DIR/src" "accuracy"
 fi
 
@@ -21,8 +21,8 @@ vt=true # Vary threads
 ### Sources of data
 declare -A datasets
 datasets[" "]=""
-datasets["flows_dirA"]="/home/victor/git/Delegation-Space-Saving/datasets/flows_dirA.txt"
-datasets["flows_dirB"]="/home/victor/git/Delegation-Space-Saving/datasets/flows_dirB.txt"
+datasets["flows_dirA"]="${REPO_DIR}/datasets/flows_dirA.txt"
+datasets["flows_dirB"]="${REPO_DIR}/datasets/flows_dirB.txt"
 
 EPSILONratio="0.1"
 BETAratio="0.1" #favorable to PRIF, use 0.5 when testing throughput
@@ -71,14 +71,14 @@ if [ "$vsdfsdfu" = true ] ; then
                         echo "N: $N"
                         for rep in $num_reps
                         do
-                            filename="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${N}.txt"
+                            filename="${REPO_DIR}/datasets/zipf_${skew}_${N}.txt"
                             echo "rep: $rep"
                             new_columns=4
-                            output=$(./bin/"$version".out "$N" "$N" $new_columns $rows 1 "$skew" 0 1 $num_thr 0 0 "$calgo_param" $topk_rates $K $phi "$MAX_FILTER_SUM" "$MAX_FILTER_UNIQUE" "$beta" "$filename")
+                            output=$("${REPO_DIR}"/bin/"$version".out "$N" "$N" $new_columns $rows 1 "$skew" 0 1 $num_thr 0 0 "$calgo_param" $topk_rates $K $phi "$MAX_FILTER_SUM" "$MAX_FILTER_UNIQUE" "$beta" "$filename")
                             echo "$N" "$N" $new_columns $rows 1 "$skew" 0 1 $num_thr 0 0 "$calgo_param" $topk_rates $K $phi "$MAX_FILTER_SUM" "$MAX_FILTER_UNIQUE"
                             echo "$output"
                             echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> logs/accuracy/vsdfsdfu/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_dfsdfu_accuracy.log
-                            echo "$output" >> logs/accuracy/vsdfsdfu/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_dfsdfu_accuracy_info.log
+                            echo "$output" >> "${REPO_DIR}"/logs/accuracy/vsdfsdfu/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_dfsdfu_accuracy_info.log
                         done
                     done
                 done
@@ -98,7 +98,7 @@ versions="prif_accuracy"
 ## Vary Skew and N
 echo "------Vary Skew and N------"
 if [ "$vsN" = true ] ; then 
-    mkdir -p logs/accuracy/vsN
+    mkdir -p "${REPO_DIR}"/logs/accuracy/vsN
     for version in $versions
     do 
         echo "$version"
@@ -135,12 +135,12 @@ if [ "$vsN" = true ] ; then
                     for N in $streamlengths
                     do
                         echo "N: $N"
-                        filepath="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${N}.txt"
+                        filepath="${REPO_DIR}/datasets/zipf_${skew}_${N}.txt"
                         for rep in $num_reps
                         do
                             echo "rep: $rep"
-                            output=$(./bin/"$version".out "$N" "$N" "$new_columns" $rows 1 "$skew" 0 1 $num_thr 0 0 "$calgo_param" $topk_rates "$K" $phi "$MAX_FILTER_SUM" "$MAX_FILTER_UNIQUE" "$beta" """$filepat""h")
-                            echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> logs/accuracy/vsN/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_varN_accuracy.log
+                            output=$("${REPO_DIR}"/bin/"$version".out "$N" "$N" "$new_columns" $rows 1 "$skew" 0 1 $num_thr 0 0 "$calgo_param" $topk_rates "$K" $phi "$MAX_FILTER_SUM" "$MAX_FILTER_UNIQUE" "$beta" "$filepath")
+                            echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> "${REPO_DIR}"/logs/accuracy/vsN/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_varN_accuracy.log
                             if [[ "$version" == *"deleg"* ]]; then
                                 if [[ "$output" =~ $regex ]]; then
                                     if [[ "${BASH_REMATCH[4]}" != *"flows"* ]]; then 
@@ -152,7 +152,7 @@ if [ "$vsN" = true ] ; then
                                 fi
                             fi
                         done
-                        cp logs/topk_results.txt logs/accuracy/vsN/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_varN_histogram.log
+                        cp "${REPO_DIR}"/logs/topk_results.txt "${REPO_DIR}"/logs/accuracy/vsN/var_skew_"${version}"_"${num_thr}"_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_varN_histogram.log
                     done
                 done
             done
@@ -170,7 +170,7 @@ versions="prif_accuracy"
 ## Vary Skew and phi (query rate has no effect on accuracy)
 echo "------ Vary Skew and phi ------"
 if [ "$vs" = true ] ; then 
-    mkdir -p logs/accuracy/vs
+    mkdir -p "${REPO_DIR}/logs/accuracy/vs"
     for version in $versions
     do 
         echo "$version"
@@ -206,15 +206,15 @@ if [ "$vs" = true ] ; then
                 do
                     for N in $streamlengths
                     do
-                        filepath="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${N}.txt"
+                        filepath="${REPO_DIR}/datasets/zipf_${skew}_${N}.txt"
                         echo "N: $N"
                         for rep in $num_reps
                         do
                             echo "rep: $rep"
-                            output=$(./bin/"$version".out "$N" "$N" "$new_columns" $rows 1 "$skew" 0 1 $num_thr 0 0 "$calgo_param" "$topk_rates" "$K" "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUE "$beta" "$filepath")
+                            output=$("${REPO_DIR}"/bin/"$version".out "$N" "$N" "$new_columns" $rows 1 "$skew" 0 1 $num_thr 0 0 "$calgo_param" "$topk_rates" "$K" "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUE "$beta" "$filepath")
                             echo "$N $N $new_columns $rows 1 $skew 0 1 $num_thr 0 0 $calgo_param $topk_rates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUE $filepath"
                             echo "$output"
-                            echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> logs/accuracy/vs/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_phi_accuracy.log
+                            echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> "${REPO_DIR}"/logs/accuracy/vs/var_skew_"${version}"_${num_thr}_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_phi_accuracy.log
                             if [[ "$version" == *"deleg"* ]]; then
                                 if [[ "$output" =~ $regex ]]; then
                                     if [[ "${BASH_REMATCH[4]}" != *"flows"* ]]; then 
@@ -245,7 +245,7 @@ versions="prif_accuracy"
 echo "------ Vary Threads and phi------"
 
 if [ "$vt" = true ] ; then
-    mkdir -p logs/accuracy/vt
+    mkdir -p "${REPO_DIR}/logs/accuracy/vt"
     for dsname in "${!datasets[@]}"
     do 
         echo "$dsname"
@@ -294,15 +294,15 @@ if [ "$vt" = true ] ; then
                         for N in $streamlengths
                         do
                             if [[ "$dsname" == "" ]]; then
-                                filepath="/home/victor/git/Delegation-Space-Saving/datasets/zipf_${skew}_${N}.txt"
+                                filepath="${REPO_DIR}/datasets/zipf_${skew}_${N}.txt"
                             fi
                             echo "N: $N"
                             for rep in $num_reps
                             do
                                 echo "rep: $rep"
                                 #new_columns=$(((buckets*rows*4 - num_thr*64)/(rows*4)))
-                                output=$(./bin/"$version".out "$N" "$N" "$new_columns" $rows 1 $skew 0 1 "$num_thr" 0 0 "$calgo_param" "$topk_rates" "$K" "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUE "$beta" "$filepath")
-                                echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> logs/accuracy/vt/var_threads_"${version}"_"${num_thr}""_"${skew}_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_phi"${dsname}"_accuracy.log
+                                output=$("${REPO_DIR}"/bin/"$version".out "$N" "$N" "$new_columns" $rows 1 $skew 0 1 "$num_thr" 0 0 "$calgo_param" "$topk_rates" "$K" "$phi" $MAX_FILTER_SUM $MAX_FILTER_UNIQUE "$beta" "$filepath")
+                                echo "$output" | grep -oP 'Precision:\d.\d+, Recall:\d.\d+, AverageRelativeError:\d.\d+' -a --text >> "${REPO_DIR}"/logs/accuracy/vt/var_threads_"${version}"_"${num_thr}"_"${skew}"_"${phi}"_"${MAX_FILTER_SUM}"_"${MAX_FILTER_UNIQUE}"_"${N}"_phi"${dsname}"_accuracy.log
                             if [[ "$version" == *"deleg"* ]]; then
                                 if [[ "$output" =~ $regex ]]; then
                                     if [[ "${BASH_REMATCH[4]}" != *"flows"* ]]; then 
