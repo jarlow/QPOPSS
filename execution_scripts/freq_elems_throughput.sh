@@ -1,14 +1,12 @@
 #!/bin/bash
-#
-# Compare performance of deleg frequent elems vs single threaded frequent elems
-#
+CURR_DIR=$(dirname "$0")
+REPO_DIR=$(readlink -f "${CURR_DIR}/..")
+source $(dirname $0)/helper_functions.sh
 
 compile=$1
+
 if [ "$compile" = "1" ]; then 
-    cd src || exit
-    make clean
-    make freq_elems_performance
-    cd ../
+    compile "$REPO_DIR/src" "throughput"
 fi
 
 #Topk for each dataset
@@ -25,7 +23,7 @@ new_columns=100
 queries=0
 
 ### Which experiments to run?
-vsdfsdfu=true
+vsdfsdfu=false
 vs=true
 vt=true
 
@@ -37,50 +35,9 @@ datasets["flows_dirB"]="/home/victor/git/Delegation-Space-Saving/datasets/flows_
 
 K="55555"
 EPSILONratio="0.1"
+BETAratio="0.5" #favorable to PRIF, use 0.1 when testing accuracy
 reps=2
 num_reps=$(seq $reps)
-beta=0.01
-
-num_counters_deleg (){
-    eps=$1
-    a=$2
-    T=$3
-    if (( $(echo "$a <= 1" | bc -l) )); then
-        a="1"
-    fi
-    res=$(echo "e(l(1/($eps * $T))*(1/$a))" | bc -l)
-    res=${res%.*}
-    res=$((res+2))
-    echo $res
-}
-
-num_counters_single (){
-    eps=$1
-    a=$2
-    if (( $(echo "$a <= 1" | bc -l) )); then
-        a="1"
-    fi
-    res=$(echo "e(l(1/($eps))*(1/$a))" | bc -l)
-    res=${res%.*}
-    res=$((res+1))
-    echo $res
-}
-
-num_counters_topkapi(){
-    dss_counters_tot=$1
-    df_size=$2
-    T=$3
-    rows=$4
-    a=$5
-    if (( $(echo "$a <= 1" | bc -l) )); then
-        a="1"
-    fi
-    aThRoot=$(echo "e( l($dss_counters_tot/$T)/$a )" | bc -l)
-    res=$(echo "(16*$aThRoot + $T*2*$df_size + 9*$T) / (2*$rows)" | bc -l)
-    res=${res%.*}
-    echo $res
-}
-
 
 ### Investigate effects of df_u and df_s over skew ###
 queries="0"
@@ -128,9 +85,9 @@ fi
 MAX_FILTER_UNIQUES="16"
 MAX_FILTER_SUMS="1000"
 phis="0.001 0.0002 0.0001"
-#topkqueriesS="0 100 1000"
-topkqueriesS="100"
-versions="cm_spacesaving_deleg_min_max_heap_throughput cm_topkapi_throughput cm_spacesaving_single_min_max_heap_throughput cm_spacesaving_deleg_min_heap_throughput"
+topkqueriesS="0 100 200"
+#versions="cm_spacesaving_deleg_min_max_heap_throughput cm_topkapi_throughput cm_spacesaving_single_min_max_heap_throughput cm_spacesaving_deleg_min_heap_throughput"
+versions="prif_throughput"
 ## Vary skew with qr and phi
 echo "------ Vary skew, query rate and phi------"
 if [ "$vs" = true ] ; then
@@ -168,8 +125,12 @@ if [ "$vs" = true ] ; then
                                 fi
                                 eps=$(echo "$phi*$EPSILONratio" | bc -l)
                                 eps=0$eps
+                                beta=$(echo "$eps*$BETAratio" | bc -l)
+                                beta=0$beta
                                 if [[ "$version" == *"single"* ]]; then 
                                     calgo_param=$(num_counters_single "$eps" "$skew")
+                                elif [[ "$version" == *"prif"* ]]; then
+                                    calgo_param=$(num_counters_prif "$eps" "$num_thr" "$beta")
                                 else
                                     calgo_param=$(num_counters_deleg "$eps" "$skew" $num_thr)
                                 fi
@@ -213,9 +174,9 @@ MAX_FILTER_UNIQUES="16"
 MAX_FILTER_SUMS="1000"
 
 phis="0.001 0.0002 0.0001"
-#topkqueriesS="0 100 1000"
-topkqueriesS="100"
-versions="cm_spacesaving_deleg_min_max_heap_throughput cm_topkapi_throughput cm_spacesaving_single_min_max_heap_throughput cm_spacesaving_deleg_min_heap_throughput"
+topkqueriesS="0 100 200"
+#versions="cm_spacesaving_deleg_min_max_heap_throughput cm_topkapi_throughput cm_spacesaving_single_min_max_heap_throughput cm_spacesaving_deleg_min_heap_throughput"
+versions="prif_throughput"
 threads="4 8 12 16 20 24"
 ## Vary threads with skew 1.25
 echo "------ Vary Threads, query rate and phi------"
@@ -254,12 +215,15 @@ if [ "$vt" = true ] ; then
                                 fi
                                 eps=$(echo "$phi*$EPSILONratio" | bc -l)
                                 eps=0$eps
+                                beta=$(echo "$eps*$BETAratio" | bc -l)
+                                beta=0$beta
                                 if [[ "$version" == *"single"* ]]; then 
                                     calgo_param=$(num_counters_single "$eps" "$skew")
+                                elif [[ "$version" == *"prif"* ]]; then
+                                    calgo_param=$(num_counters_prif "$eps" "$num_thr" "$beta")
                                 else
                                     calgo_param=$(num_counters_deleg "$eps" "$skew" $num_thr)
                                 fi
-
                                 dss_counters=$(num_counters_deleg "$eps" "$skew" $num_thr)
                                 dss_counters=$(( dss_counters*num_thr ))
 

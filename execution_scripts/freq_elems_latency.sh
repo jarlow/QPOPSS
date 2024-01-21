@@ -1,14 +1,10 @@
 #!/bin/bash
-#
-# Compare performance of deleg frequent elems vs single threaded frequent elems
-#
+CURR_DIR=$(dirname "$0")
+REPO_DIR=$(readlink -f "${CURR_DIR}/..")
+source $(dirname $0)/helper_functions.sh
 
-compile=$1
 if [ "$compile" = "1" ]; then 
-    cd src || exit
-    make clean
-    make freq_elems_performance
-    cd ../
+    compile "$REPO_DIR/src" "throughput"
 fi
 
 #Topk for each dataset
@@ -23,7 +19,6 @@ N=${stream_size}
 rows=4
 new_columns=100
 queries=0
-beta=0.01
 
 ### Which experiments to run?
 vs=true
@@ -37,48 +32,9 @@ datasets["flows_dirB"]="/home/victor/git/Delegation-Space-Saving/datasets/flows_
 
 K="55555"
 EPSILONratio="0.1"
+BETAratio="0.5"
 reps=2
 num_reps=$(seq $reps)
-
-num_counters_deleg (){
-    eps=$1
-    a=$2
-    T=$3
-    if (( $(echo "$a <= 1" | bc -l) )); then
-        a="1"
-    fi
-    res=$(echo "e(l(1/($eps * $T))*(1/$a))" | bc -l)
-    res=${res%.*}
-    res=$((res+1))
-    echo $res
-}
-
-num_counters_single (){
-    eps=$1
-    a=$2
-    if (( $(echo "$a <= 1" | bc -l) )); then
-        a="1"
-    fi
-    res=$(echo "e(l(1/($eps))*(1/$a))" | bc -l)
-    res=${res%.*}
-    res=$((res+1))
-    echo $res
-}
-
-num_counters_topkapi(){
-    dss_counters_tot=$1
-    df_size=$2
-    T=$3
-    rows=$4
-    a=$5
-    if (( $(echo "$a <= 1" | bc -l) )); then
-        a="1"
-    fi
-    aThRoot=$(echo "e( l($dss_counters_tot/$T)/$a )" | bc -l)
-    res=$(echo "(16*$aThRoot + $T*2*$df_size + 9*$T) / (2*$rows)" | bc -l)
-    res=${res%.*}
-    echo $res
-}
 
 MAX_FILTER_UNIQUES="16"
 MAX_FILTER_SUMS="1000"
@@ -123,8 +79,12 @@ if [ "$vs" = true ] ; then
                                 fi
                                 eps=$(echo "$phi*$EPSILONratio" | bc -l)
                                 eps=0$eps
+                                beta=$(echo "$eps*$BETAratio" | bc -l)
+                                beta=0$beta
                                 if [[ "$version" == *"single"* ]]; then 
                                     calgo_param=$(num_counters_single "$eps" "$skew")
+                                elif [[ "$version" == *"prif"* ]]; then 
+                                    calgo_param=$(num_counters_prif "$eps" "$num_thr" "$beta")
                                 else
                                     calgo_param=$(num_counters_deleg "$eps" "$skew" $num_thr)
                                 fi
@@ -210,8 +170,12 @@ if [ "$vt" = true ] ; then
                                 fi
                                 eps=$(echo "$phi*$EPSILONratio" | bc -l)
                                 eps=0$eps
+                                beta=$(echo "$eps*$BETAratio" | bc -l)
+                                beta=0$beta
                                 if [[ "$version" == *"single"* ]]; then 
                                     calgo_param=$(num_counters_single "$eps" "$skew")
+                                elif [[ "$version" == *"prif"* ]]; then 
+                                    calgo_param=$(num_counters_prif "$eps" "$num_thr" "$beta")
                                 else
                                     calgo_param=$(num_counters_deleg "$eps" "$skew" $num_thr)
                                 fi
