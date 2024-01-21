@@ -3,6 +3,7 @@
 #include <semaphore.h>
 #include "buffer.h"
 #include <cstdio>
+
 static buffer_t buffer[BUFSIZE];
 static pthread_mutex_t bufferlock = PTHREAD_MUTEX_INITIALIZER;
 static int bufin = 0;
@@ -10,6 +11,7 @@ static int bufout = 0;
 static sem_t semitems;
 static sem_t semslots;
 int bufferinit(void) { /* call this exactly once BEFORE getitem and putitem  */
+   printf("Initializing shared PRIF buffer\n");
    int error;
    if (sem_init(&semitems, 0, 0))  
       return errno;
@@ -36,18 +38,25 @@ bool buffercontains(buffer_t *itemp){
    }
 }
 
+int getnumitems(){
+   int val;
+   sem_getvalue(&semitems,&val);
+   return val;
+}
+
+int getnumslots(){
+   int val;
+   sem_getvalue(&semslots,&val);
+   return val;
+}
+
 int getitem(buffer_t *itemp, volatile int *startBenchmark) {  /* remove item from buffer and put in *itemp */
    int error;
-   /*int semslots_val;
-   int semitems_val;
-   sem_getvalue(&semslots,&semslots_val);
-   sem_getvalue(&semitems,&semitems_val);
-   printf("semslots: %d, semitems: %d\n",semslots_val,semitems_val);*/
+   // Uncomment below to debug the buffer.
+   // printf("Buffer contains %d items\n",getnumitems());
    while (((error = sem_trywait(&semitems)) == -1) && (errno == EAGAIN) && (*startBenchmark)){
     // Try to take an item from the buffer, make sure that we do not deadlock
     // While empty, retry, unless we should stop the benchmark. 
-    //printf("Buffer is empty, waiting for producer to produce items%d\n",*startBenchmark);
-    //printf("semslots: %d, semitems: %d",semslots,semitems);
    }
    if (error)
       return errno;
