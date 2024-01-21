@@ -253,16 +253,16 @@ void threadWork(threadDataStruct *localThreadData)
 
 void preinsert(threadDataStruct * localThreadData){
     int start,end;
-    #if TOPKAPI || PRIF
+    #if TOPKAPI || PRIF // PRIF and topkapi let each thread process a 1/T fraction of the "global" stream.
     start=localThreadData->startIndex;
     end=localThreadData->endIndex;
     startBenchmark = true;
-    #else
+    #else // Other algorithms (e.g. QpopSS) let each thread process all of the "global" stream, inserting only owned elements.
     start=0;
     end=tuples_no;
     #endif
     #if PRIF
-    if (localThreadData->tid == numberOfThreads-1){
+    if (localThreadData->tid == numberOfThreads-1){ // The last thread is the merging thread in PRIF.
         prifMergeThreadWorkPreins(localThreadData);
     }
     else{
@@ -293,7 +293,6 @@ void preinsert(threadDataStruct * localThreadData){
     if (threadsFinished == numberOfThreads-1){
         startBenchmark = false; // stop merging thread. 
         threadsFinished = 0; // reset threadsFinished
-        printf("Done with preinsert\n");
     }
     #endif
 }
@@ -342,6 +341,7 @@ void * threadEntryPoint(void * threadArgs){
     // If we are using PREINSERT, then the elements are inserted once before the benchmark starts, not compatible with accuracy experiments
     #if PREINSERT && !ACCURACY
     preinsert(localThreadData);
+    printf("Preinsert done\n");
     #endif
 
     // cross barriers, starting the benchmark when all threads are ready
