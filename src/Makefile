@@ -4,7 +4,7 @@ CPPDEBUG = g++ -O2 -Wno-deprecated -pthread -std=c++11 -g $(INCLUDE)
 BIN = ../bin
 
 all: freq_elems_throughput freq_elems_accuracy freq_elems_prif_throughput freq_elems_prif_accuracy
-freq_elems_throughput: cm_spacesaving_deleg_min_heap_throughput.out cm_spacesaving_deleg_min_max_heap_throughput.out cm_spacesaving_single_min_heap_throughput.out cm_spacesaving_single_min_max_heap_throughput.out cm_topkapi_throughput.out prif.out
+freq_elems_throughput: cm_spacesaving_deleg_min_heap_throughput.out cm_spacesaving_deleg_min_max_heap_throughput.out cm_spacesaving_single_min_heap_throughput.out cm_spacesaving_single_min_max_heap_throughput.out cm_topkapi_throughput.out prif_throughput.out
 freq_elems_accuracy: cm_spacesaving_deleg_min_heap_accuracy.out cm_spacesaving_deleg_min_max_heap_accuracy.out cm_spacesaving_single_min_heap_accuracy.out cm_spacesaving_single_min_max_heap_accuracy.out cm_topkapi_accuracy.out prif_accuracy.out
 freq_elems_prif_throughput: prif_throughput.out
 freq_elems_prif_accuracy: prif_accuracy.out
