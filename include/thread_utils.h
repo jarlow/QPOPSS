@@ -56,7 +56,7 @@ void initThreadData(Count_Min_Sketch ** sketchArray, Relation * relation,int MAX
         threadData[i].owf = OWF_Init(alpha,beta);
     }
     threadData[numberOfThreads-1].owf = OWF_Init(alpha/((double)numberOfThreads - 1),beta);
-    bufferinit();
+    bufferinit(); // Initialize the shared buffer between the merging thread and the other threads.
     #endif
 
 
