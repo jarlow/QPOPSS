@@ -1,7 +1,7 @@
 #!/bin/bash
 CURR_DIR=$(dirname "$0")
 REPO_DIR=$(readlink -f "${CURR_DIR}/..")
-source $(dirname $0)/helper_functions.sh
+source "$(dirname "$0")/helper_functions.sh"
 
 should_compile=$1
 TYPE=$2
