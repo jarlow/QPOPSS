@@ -2,8 +2,8 @@
 #include "thread_data.h"
 #include "utils.h"
 #include "query_utils.h"
-#include "buffer.h" // Circularbuffer implementation
-#include "owfrequent.h" // OWFrequent implementation
+#include "buffer.h" // Circularbuffer
+#include "owfrequent.h" // OWFrequent
 
 void prifUpdate(threadDataStruct *localThreadData, uint32_t key, uint32_t increment){
     OWF_Update(localThreadData->owf, key, increment);
@@ -34,17 +34,19 @@ void prifMergeThreadWork(threadDataStruct *localThreadData, int numberOfThreads,
         getitem(&res,&startBenchmark); // Get a frequency increment from the shared buffer
         OWF_Update_Merging_Thread(localThreadData->owf,res.first, res.second); // update merging owf with the frequency increment
         if (shouldTopKQuery(localThreadData) < TOPK_QUERY_RATE)
-        {   
+        {
             prifQuery(localThreadData, numberOfThreads, PHI);
             numTopKQueries++;
         }
     }
+    #if ACCURACY // Generously, give the merging thread the chance to process the remaining items in the buffer.
     int c = 0;
     while (buffercontains(&res)){ // empty buffer
         c++;
         OWF_Update_Merging_Thread(localThreadData->owf,res.first, res.second); // update merging owf with the frequency increment
     }
     printf("Emptying buffer, entries %d\n",c);
+    #endif
     localThreadData->numTopKQueries=numTopKQueries;
 }
 
@@ -58,7 +60,7 @@ void prifMergeThreadWorkPreins(threadDataStruct *localThreadData){
         getitem(&res,&startBenchmark); // Get a frequency increment from the shared buffer
         OWF_Update_Merging_Thread(localThreadData->owf,res.first, res.second); // update merging owf with the frequency increment
     }
-    int c =0;
+    int c=0;
     while (buffercontains(&res)){ // empty buffer
         c++;
         OWF_Update_Merging_Thread(localThreadData->owf,res.first, res.second); // update merging owf with the frequency increment
