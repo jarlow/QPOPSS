@@ -6,8 +6,8 @@ import os
 ''' Constants '''
 RUNTIME=10 #For how long did each repetition execute?
 
-names = ["spacesaving single_min_max_heap", "spacesaving deleg_min_max_heap","topkapi", "spacesaving deleg_min_max_heap"] #["spacesaving single", "spacesaving deleg","topkapi"]
-fancy_names = ["QOSS","QPOPSS","Topkapi", "QPOPSS"] #["Single Space-Saving","Delegation Space-Saving","Topkapi"]
+names = ["spacesaving single_min_max_heap", "spacesaving deleg_min_max_heap","topkapi", "spacesaving deleg_min_max_heap", "prif"] #["spacesaving single", "spacesaving deleg","topkapi"]
+fancy_names = ["QOSS","QPOPSS","Topkapi", "QPOPSS", "PRIF"] #["Single Space-Saving","Delegation Space-Saving","Topkapi"]
 
 datasets = ["", "flows_dirA", "flows_dirB"]
 fancy_dataset_names = ["Zipf", "CAIDA Flows DirA", "CAIDA Flows DirB"]

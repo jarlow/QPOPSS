@@ -48,6 +48,8 @@ def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_u
                                     for z in srs:
                                         if n == ["topkapi"]:
                                             globname="logs/" + path_prefix + x_axis_name + "_cm_topkapi_throughput_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_throughput.log"
+                                        elif n == ["prif"]:
+                                            globname="logs/" + path_prefix + x_axis_name + "prif_throughput_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_throughput.log"
                                         else:
                                             if maxheap_flag:
                                                 globname="logs/" + path_prefix + x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_maxheap_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_throughput.log"
@@ -125,8 +127,13 @@ if vs_dfu_dfs:
 
 def generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,query_rate,ax1_legend_function,ax2_legend_function):
     fig, ax1 = plt.subplots()
-    lineplot = sns.lineplot(x=xaxis_string, y="Throughput", data=perfdf[(perfdf["Query Rate"] == query_rate) & (perfdf["Dataset"] == dataset) & (perfdf["Threads"] != 1)], markersize=24,
-                    linewidth=7, markers=True, style=r"$\phi$", hue="Algorithm", palette="muted", legend=True if query_rate == 0.02 else False, ax=ax1)
+    lineplot = sns.lineplot(x=xaxis_string, y="Throughput", data=perfdf[
+                                                                (perfdf["Query Rate"] == query_rate) & 
+                                                                (perfdf["Dataset"] == dataset) & 
+                                                                (perfdf["Threads"] != 1)
+                                                                ], 
+                            markersize=24,linewidth=7, markers=True, style=r"$\phi$", 
+                            hue="Algorithm", palette="muted", legend=True if query_rate == 0.02 else False, ax=ax1)
     ax1.set_xlabel(xaxis_string)
     ax1.set_ylabel("Throughput (Million Inserts/sec)")
     ax1.set_ylim(1, ylim_throughput_max)
