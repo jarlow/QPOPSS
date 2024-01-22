@@ -34,7 +34,7 @@ datasets["flows_dirB"]="${REPO_DIR}/datasets/flows_dirB.txt"
 
 K="55555"
 EPSILONratio="0.1"
-BETAratio="0.5"
+BETAratio="0.1"
 reps=2
 num_reps=$(seq $reps)
 

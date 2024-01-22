@@ -35,7 +35,7 @@ datasets["flows_dirB"]="${REPO_DIR}/datasets/flows_dirB.txt"
 
 K="55555"
 EPSILONratio="0.1"
-BETAratio="0.5" #favorable to PRIF, use 0.1 when testing accuracy
+BETAratio="0.1" #favorable to PRIF, use 0.1 when testing accuracy
 reps=2
 num_reps=$(seq $reps)
 
