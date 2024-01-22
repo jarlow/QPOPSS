@@ -91,7 +91,7 @@ versions="prif_throughput"
 ## Vary skew with qr and phi
 echo "------ Vary skew, query rate and phi------"
 if [ "$vs" = true ] ; then
-    mkdir -p "${REPO_DIR}logs/throughput/vs"
+    mkdir -p "${REPO_DIR}/logs/throughput/vs"
     for dsname in "${!datasets[@]}"
     do 
         echo "$dsname"
