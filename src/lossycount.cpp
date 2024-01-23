@@ -225,7 +225,7 @@ template <typename Comparator>
 LCLCounter* MinMaxHeapPushDown(const LCL_type *lcl, const int ptr, const Comparator comp){
 	LCLCounter *cpt,*mchild,*mgchild;
 	cpt = mchild = mgchild = nullptr;
-	int mc = -1, mgc = -1;
+	int mc,mgc;
 	cpt=&(lcl->counters[ptr]);
 
 	if (!hasChildren(ptr,lcl->size)) return cpt; // if no children, return
@@ -265,6 +265,35 @@ void MinMaxHeapPushUp(const LCL_type * lcl, const int ptr, const Comparator comp
 	if (hasGrandparent(ptr) && comp(lcl->counters[ptr].count,lcl->counters[gp].count)){ // grandparent exists
 		swapAndMaintainHashtable(&lcl->counters[ptr],&lcl->counters[gp],lcl);
 		MinMaxHeapPushUp(lcl,gp,comp);
+	}
+}
+
+void MinMaxHeapPushUp(const LCL_type * lcl, const int ptr){
+	if (ptr == 1){ return; } // if root return
+
+	LCLCounter tmp;
+	LCLCounter *cpt = nullptr, *parent = nullptr;
+	cpt = &lcl->counters[ptr];
+	const int par = ptr >> 1;
+	parent = &lcl->counters[par];
+
+	if (isMinLevel(ptr,lcl)){
+		if (cpt->count > parent->count){ // min level and curr > parent, swap 
+			swapAndMaintainHashtable(cpt,parent,lcl);
+			MinMaxHeapPushUp(lcl,par,std::greater<volatile LCLweight_t>());
+		}
+		else{
+			MinMaxHeapPushUp(lcl,ptr,std::less<volatile LCLweight_t>());
+		}
+	}
+	else{
+		if (cpt->count < parent->count){ // max level and curr < parent, swap 
+			swapAndMaintainHashtable(cpt,parent,lcl);
+			MinMaxHeapPushUp(lcl,par,std::less<volatile LCLweight_t>());
+		}
+		else{
+			MinMaxHeapPushUp(lcl,ptr,std::greater<volatile LCLweight_t>());
+		}
 	}
 }
 
