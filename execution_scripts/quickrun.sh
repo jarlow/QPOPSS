@@ -41,11 +41,11 @@ MAX_FILTER_UNIQUES="16"
 versions="prif_${TYPE} cm_spacesaving_deleg_min_max_heap_${TYPE}"
 #versions="prif"
 #versions="cm_spacesaving_deleg_min_max_heap_${TYPE}" #cm_spacesaving_deleg_min_heap_${TYPE}" #cm_topkapi_accuracy" #"cm_spacesaving_deleg cm_spacesaving_deleg_maxheap cm_topkapi" #cm_topkapi_accuracy #cm_spacesaving_deleg_accuracy cm_spacesaving_deleg_maxheap_accuracy
+eps=$(echo "$phi*$EPSILONratio" | bc -l)
+eps=0$eps
+beta=$(echo "$eps*$BETAratio" | bc -l)
+beta=0$beta
 for version in $versions; do
-    eps=$(echo "$phi*$EPSILONratio" | bc -l)
-    eps=0$eps
-    beta=$(echo "$eps*$BETAratio" | bc -l)
-    beta=0$beta
     dss_counters=$(num_counters_deleg "$eps" "$skew" "$num_thr")
     dss_counters=$(( dss_counters*num_thr ))
 
@@ -63,10 +63,6 @@ for version in $versions; do
     "${REPO_DIR}/bin/$version.out" $universe_size $stream_size $new_columns $rows 1 $skew 0 1 $num_thr $queries $num_seconds "$calgo_param" $topk_rates $K $phi $MAX_FILTER_SUM $MAX_FILTER_UNIQUES "$beta" "$filename"
 done
 
-eps=$(echo "$phi*$EPSILONratio" | bc -l)
-eps=0$eps
-beta=$(echo "$eps*$BETAratio" | bc -l)
-beta=0$beta
 calgo_param=$(num_counters_single "$eps" "$skew")
 num_thr="1"
 echo "spacesaving single"
