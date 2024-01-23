@@ -16,12 +16,17 @@ NC='\033[0m' # No Color
 
 num_thr='24'
 rows=4
-universe_size="100000000"
-stream_size="100000000"
-skew="0.75"
-num_seconds=0
+universe_size="1000000"
+stream_size="1000000"
+skew="1.25"
+num_seconds=10
 EPSILONratio="0.1"
 BETAratio="0.1"
+phi="0.00001"
+eps=$(echo "$phi*$EPSILONratio" | bc -l)
+eps=0$eps
+beta=$(echo "$eps*$BETAratio" | bc -l)
+beta=0$beta
 
 #Real Data
 #filename="${REPO_DIR}/words.txt"
@@ -34,17 +39,12 @@ filename="${REPO_DIR}/datasets/zipf_${skew}_${stream_size}.txt"
 
 topk_rates="0"
 queries="0"
-phi="0.0001"
 MAX_FILTER_SUM="1000"
 K=1000
 MAX_FILTER_UNIQUES="16"
-versions="prif_${TYPE} cm_spacesaving_deleg_min_max_heap_${TYPE}"
+versions="" #"cm_spacesaving_deleg_min_max_heap_${TYPE}"
 #versions="prif"
 #versions="cm_spacesaving_deleg_min_max_heap_${TYPE}" #cm_spacesaving_deleg_min_heap_${TYPE}" #cm_topkapi_accuracy" #"cm_spacesaving_deleg cm_spacesaving_deleg_maxheap cm_topkapi" #cm_topkapi_accuracy #cm_spacesaving_deleg_accuracy cm_spacesaving_deleg_maxheap_accuracy
-eps=$(echo "$phi*$EPSILONratio" | bc -l)
-eps=0$eps
-beta=$(echo "$eps*$BETAratio" | bc -l)
-beta=0$beta
 for version in $versions; do
     dss_counters=$(num_counters_deleg "$eps" "$skew" "$num_thr")
     dss_counters=$(( dss_counters*num_thr ))
