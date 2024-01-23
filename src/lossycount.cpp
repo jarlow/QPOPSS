@@ -228,6 +228,8 @@ LCLCounter* MinMaxHeapPushDown(const LCL_type *lcl, const int ptr, const Compara
 	int mc,mgc;
 	cpt=&(lcl->counters[ptr]);
 
+	// TODO: is there some way to rewrite this to avoid some if statements?
+
 	if (!hasChildren(ptr,lcl->size)) return cpt; // if no children, return
 
 	if (hasGrandchildren(ptr,lcl->size)) { // if grandchild exists
