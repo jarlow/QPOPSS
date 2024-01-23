@@ -78,7 +78,7 @@ if [ "$vs" = true ] ; then
                             for skew in $skew_rates
                             do
                                 if [[ "$dsname" == "" ]]; then
-                                    filepath="${REPO_DIR}datasets/zipf_${skew}_${stream_size}.txt"
+                                    filepath="${REPO_DIR}/datasets/zipf_${skew}_${stream_size}.txt"
                                 fi
                                 eps=$(echo "$phi*$EPSILONratio" | bc -l)
                                 eps=0$eps
