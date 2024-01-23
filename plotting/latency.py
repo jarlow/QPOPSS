@@ -1,13 +1,10 @@
 from matplotlib import pyplot as plt
 import seaborn as sns
-import matplotlib.ticker as plticker
 import numpy as np
 import pandas as pd
 import matplotlib
 import glob
-import os
-from matplotlib.lines import Line2D
-from math import log10,ceil,floor
+from math import log10,floor
 from plotters import create_parent_dir_if_not_exists,average_and_std,parse_latency,format_float,\
                     RUNTIME,names,fancy_names,datasets,fancy_dataset_names,showplots_flag,saveplots_flag
 
