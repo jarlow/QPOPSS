@@ -6,6 +6,11 @@ import os
 ''' Constants '''
 RUNTIME=10 #For how long did each repetition execute?
 
+marker_styles = {"lengths": ['*', 'o', 'v',],
+                 "phi": ['^', 's', 'p',],
+                 "datasets": ['D', 'X', '>',]
+                 }
+
 names = ["spacesaving single_min_max_heap", "spacesaving deleg_min_max_heap","topkapi", "spacesaving deleg_min_max_heap", "prif"] #["spacesaving single", "spacesaving deleg","topkapi"]
 fancy_names = ["QOSS","QPOPSS","Topkapi", "QPOPSS", "PRIF"] #["Single Space-Saving","Delegation Space-Saving","Topkapi"]
 
@@ -166,3 +171,42 @@ def point_error(res,err_fun):
 
 def format_float(num):
     return np.format_float_positional(num, trim='-')
+
+def save_plot(plt, name, showplots_flag, saveplots_flag):
+    create_parent_dir_if_not_exists(name)
+    plt.savefig(name, format="svg", dpi=4000, bbox_inches='tight')
+
+def close_plot(plt):
+    plt.cla()
+    plt.clf()
+    plt.close()
+
+def output_plot(plt,name,showplots_flag, saveplots_flag):
+    plt.tight_layout()
+    if showplots_flag:
+        plt.show()
+    if saveplots_flag:
+        save_plot(plt,name,showplots_flag, saveplots_flag)
+    close_plot(plt)
+    
+def generate_legend(lineplot, location='best', bbox_to_anchor=None, columns=2):
+        leg=lineplot.legend(fontsize=22,
+        bbox_to_anchor=bbox_to_anchor,
+        loc=location,
+        ncol=columns,
+        prop={'weight':'normal'},
+        markerscale=1,
+        labelspacing=0.05,
+        borderpad=0.1,
+        handletextpad=0.1,
+        framealpha=0.4,
+        handlelength=0.5,
+        handleheight=0.5,
+        borderaxespad=0,
+        columnspacing=0.2)
+        [L.set_linewidth(8.0) for L in leg.legendHandles]
+        return leg
+    
+def set_opacity(lines, opacity):
+    for l in lines:
+        l.set_alpha(opacity)
