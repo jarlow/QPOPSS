@@ -4,19 +4,18 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 import glob
+from functools import partial
 from matplotlib.lines import Line2D
 from math import log10,floor
-from plotters import create_parent_dir_if_not_exists,average_and_std,parse_throughput,format_float, \
-                        RUNTIME,names,fancy_names,datasets,fancy_dataset_names,showplots_flag,saveplots_flag
+from plotters import generate_legend, create_parent_dir_if_not_exists,average_and_std, output_plot,parse_throughput,format_float, \
+                        RUNTIME,names,fancy_names,datasets,fancy_dataset_names, set_opacity,showplots_flag,saveplots_flag, marker_styles
 
-#Matplotlib aesthetic parameters:
-matplotlib.rcParams['figure.figsize'] = (10, 7)  # Dense info resolution
-# matplotlib.rcParams['figure.figsize'] = (6, 5) # Sparse info resolution
+matplotlib.rcParams['figure.figsize'] = (9, 7)  # Dense info resolution
 plt.rc('legend', fontsize=26)
-matplotlib.rcParams.update({'font.size': 34})
+matplotlib.rcParams.update({'font.size': 26})
 
 # What parameter should be varied?
-vs_dfu_dfs = True
+vs_dfu_dfs = False
 vs_phi_qr = True
 vt_phi_qr = True
 
@@ -125,88 +124,51 @@ if vs_dfu_dfs:
         plt.cla()
         plt.close()
 
-def generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,query_rate,ax1_legend_function,ax2_legend_function):
+def generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,query_rate,ax1_legend_function):
     fig, ax = plt.subplots(2, gridspec_kw={'height_ratios': [3, 1]},sharex=True)
     ax1 = ax[0]
     ax2 = ax[1]
-    alpha=0.7
     lineplot = sns.lineplot(x=xaxis_string, y="Throughput", data=perfdf[(perfdf["Query Rate"] == query_rate) & 
                                                                         (perfdf["Dataset"] == dataset) & 
                                                                         (perfdf["Threads"] != 1) &
                                                                         (perfdf["Algorithm"] != "QOSS")
                                                                         ],
-                            markersize=24,linewidth=7, markers=True, style=r"$\phi$", 
-                            hue="Algorithm", palette="muted", legend=True if query_rate == 0 else False, ax=ax1, alpha=alpha)
+                            markersize=24,linewidth=7, markers=marker_styles["phi"], style=r"$\phi$", 
+                            hue="Algorithm", palette="muted", legend='brief' if query_rate == 0 else False, ax=ax1)
     ax1.set_xlabel(xaxis_string)
     ax1.set_ylabel("Million Inserts/sec")
-    ax1.set_ylim(1, ylim_throughput_max)
+    ax1.set_ylim(0, ylim_throughput_max)
     ax1.set_xticks(xticklabels)
     ax1.set_xticklabels(xticks)
     ax2.yaxis.set_label_position("left")
-    ax1_legend_function(lineplot)
+    if query_rate == 0:
+        ax1_legend_function(lineplot)
     lineplot2 = sns.lineplot(x=xaxis_string, y="Speedup", data=perfdf[(perfdf["Query Rate"] == query_rate) & 
                                                                       (perfdf["Dataset"] == dataset) & 
                                                                       (perfdf["Threads"] != 1) &
                                                                       (perfdf["Algorithm"] != "QOSS")
                                                                       ], 
-                             markersize=24, linewidth=7, markers=True,style=r"$\phi$", 
-                             hue="Query Rate", palette=['black'], ax=ax2, legend=False, alpha=alpha)
+                             markersize=24, linewidth=7, markers=marker_styles["phi"],style=r"$\phi$", 
+                             hue="Query Rate", palette=['black'], ax=ax2, legend=False)
 
     ax2.set_xticks(xticks)
     ax2.set_xticklabels(xticklabels)
-    ax2.set_ylabel("Speedup")
+    ax2.set_ylabel("Speedup\n QPOPSS/QOSS")
     ax2.set_ylim(0,ylim_speedup_max)
-    #ax2_legend_function(lineplot2,ax2)
-    plt.tight_layout()
+    set_opacity(lineplot2.get_lines(), 0.80)
     name = "plots/throughput/"+dataset+"_"+xaxis_string+"_performance_throughput_finalphiqr_"+str(query_rate)+"_quer.svg"
-    if saveplots_flag:
-        create_parent_dir_if_not_exists(name)
-        plt.savefig(name, format="svg", dpi=4000)
-    if showplots_flag:
-        plt.show()
-    plt.clf()
-    plt.cla()
-    plt.close()
-
-def speedup_legend(lineplot2,ax2):
-    custom_line = [Line2D([0], [0], color=ax2.get_lines()[0].get_c(), lw=5, alpha=0.5)]
-    lineplot2.legend(custom_line,
-                            ["Speedup"],
-                            fontsize=26, 
-                            loc='upper left')
-
-def algo_legend(lineplot):
-    leg=lineplot.legend(fontsize=24,
-        #bbox_to_anchor=(0.73, 0.53 ,0.3,0.5),
-        loc='best',
-        ncols=2,
-        prop={'weight':'normal'},
-        markerscale=1,
-        labelspacing=0.05,
-        borderpad=0.1,
-        handletextpad=0.1,
-        framealpha=0.4,
-        handlelength=0.5,
-        handleheight=0.5,
-        borderaxespad=0,
-        columnspacing=0.2
-        )
-    [L.set_linewidth(5.0) for L in leg.legend_handles]
-    [L.set_alpha(1) for L in leg.legend_handles]
-
+    output_plot(plt, name, showplots_flag, saveplots_flag)
 
 def throughput_plots(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string):
     #Throughput with 0 queries:
 
-    generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,0,algo_legend,speedup_legend)
-    generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,0.01,algo_legend,speedup_legend)
-    generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,0.02,algo_legend,speedup_legend)
+    legend_fun = partial(generate_legend, location='best')
+    generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,0,legend_fun)
+    generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,0.01,legend_fun)
+    generate_plot(dataset,ylim_throughput_max,ylim_speedup_max,xticks,xticklabels,xaxis_string,0.02,legend_fun)
 
 # Vary skew, phi and query rate
 if vs_phi_qr:
-    matplotlib.rcParams['figure.figsize'] = (9, 7)  # Dense info resolution
-    plt.rc('legend', fontsize=26)
-    matplotlib.rcParams.update({'font.size': 26})
     ''' Variables: '''
     phis = [0.001, 0.0002, 0.0001]
     df_max_uniques = [16]
@@ -217,7 +179,7 @@ if vs_phi_qr:
     ''' ########## '''
     perfdf=crate_performance_results_df(names,streamlens,query_rates,df_max_uniques,df_max_sums,[24],skew_rates,phis,"phiqr",datasets,"skew",True,False, "throughput/vs/")
     if throughput:
-        throughput_plots("Zipf",1000,32,[0.5,1,1.5,2,2.5,3],np.arange(0.5,3.5,0.5),"Zipf Parameter")
+        throughput_plots("Zipf",1000,36,[0.5,1,1.5,2,2.5,3],np.arange(0.5,3.5,0.5),"Zipf Parameter")
 
 # Vary threads, phi and query rate
 if vt_phi_qr:
@@ -231,5 +193,5 @@ if vt_phi_qr:
     ''' ########## '''
     perfdf=crate_performance_results_df(names,streamlens,query_rates,df_max_uniques,df_max_sums,threads,[1.25],phis,"phiqr",datasets,"threads",True,False, "throughput/vt/")
     if throughput:
-        throughput_plots("CAIDA Flows DirA",200,15,threads,np.arange(4, 28, 4),"Threads")
-        throughput_plots("CAIDA Flows DirB",200,15,threads,np.arange(4, 28, 4),"Threads")
+        throughput_plots("CAIDA Flows DirA",220,17,threads,np.arange(4, 28, 4),"Threads")
+        throughput_plots("CAIDA Flows DirB",220,17,threads,np.arange(4, 28, 4),"Threads")
