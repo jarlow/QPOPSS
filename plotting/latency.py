@@ -5,8 +5,13 @@ import pandas as pd
 import matplotlib
 import glob
 from math import log10,floor
-from plotters import create_parent_dir_if_not_exists,average_and_std,parse_latency,format_float,\
-                    RUNTIME,names,fancy_names,datasets,fancy_dataset_names,showplots_flag,saveplots_flag
+from plotters import generate_legend, create_parent_dir_if_not_exists,average_and_std,parse_latency,format_float,output_plot, \
+                    RUNTIME,names,fancy_names,datasets,fancy_dataset_names,showplots_flag,saveplots_flag, \
+                    marker_styles
+
+matplotlib.rcParams['figure.figsize'] = (6, 5.5) 
+plt.rc('legend', fontsize=26)
+matplotlib.rcParams.update({'font.size': 26})
 
 # What parameter should be varied?
 vs_phi_qr = True
@@ -42,11 +47,13 @@ def crate_performance_results_df(algorithm_names,streamlens,query_rates,df_max_u
                                     for z in srs:
                                         if n == ["topkapi"]:
                                             globname="logs/" + path_prefix + x_axis_name+"_cm_topkapi_throughput_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_latency.log"
+                                        elif n == ["prif"]:
+                                            globname="logs/" + path_prefix + x_axis_name+"_prif_throughput_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_latency.log"
                                         else:
-                                            if maxheap_flag:
-                                                globname="logs/" + path_prefix + x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_min_max_heap_throughput_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_latency.log"
-                                            else:
-                                                globname="logs/" + path_prefix + x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_latency.log"
+                                            #if maxheap_flag:
+                                            #    globname="logs/" + path_prefix + x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_min_max_heap_throughput_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_latency.log"
+                                            #else:
+                                            globname="logs/" + path_prefix + x_axis_name+"_cm_"+n[0]+"_"+n[1]+"_throughput_"+str(t)+"_"+str(z)+"_"+str(format_float(phi))+"_"+str(df_max_sum)+"_"+str(df_max_unique)+"_"+str(N)+"_"+str(qr)+"_"+experiment_name+ds+"_latency.log"
                                         print(globname)
                                         file=glob.glob(globname)[0]
                                         data = parse_latency(file)
@@ -88,36 +95,21 @@ if vs_phi_qr:
     ''' ########## '''
     perfdf=crate_performance_results_df(names,streamlens,query_rates,df_max_uniques,df_max_sums,[24],skew_rates,phis,"phiqr",datasets,"vs",False,True, "latency/vs/")
     if latency:
-        matplotlib.rcParams['figure.figsize'] = (6, 5.5) 
-        plt.rc('legend', fontsize=26)
-        matplotlib.rcParams.update({'font.size': 26})
-        # Latency with 0.1% queries single:
         fig, ax1 = plt.subplots()
-        palette = sns.color_palette(palette="muted")
-        #Only orange and green
-        palette = [ (0.9333333333333333, 0.5215686274509804, 0.2901960784313726), (0.41568627450980394, 0.8, 0.39215686274509803), (0.8392156862745098, 0.37254901960784315, 0.37254901960784315)]
+        
+        # Latency with 0.1% queries single:
         lineplot=sns.lineplot(x="Zipf Parameter", y="Latency", data=perfdf[
                             (perfdf["Query Rate"] == 0.01) & 
                             (perfdf["Dataset"] == "Zipf") & 
                             (perfdf["Algorithm"] != "QOSS") &
                             (perfdf["phi"] == 0.0001)], markersize=24,
-                     linewidth=7, linestyle="dashed", marker="o", hue="Algorithm", palette=palette, ax=ax1, legend=False)
+                     linewidth=7, marker=marker_styles['phi'][2], hue="Algorithm", palette='muted', ax=ax1, legend=False)
         ax1.set_xlabel("Skew")
         ax1.set_ylabel(r"Latency ($\mu$sec)")
         ax1.set_yscale("log")
-        ax1.set_ylim(5,40000)
-        #ax1.set_xticks(np.arange(0.5,3.5,0.5))
-        #ax1.set_xticklabels(np.arange(0.5,3.5,0.5))
+        ax1.set_ylim(0.005,40000)
         name = "plots/latency/vs/skew_latency_0.0001phi_0.01query.svg"
-        plt.tight_layout()
-        if saveplots_flag:
-            create_parent_dir_if_not_exists(name)
-            plt.savefig(name, format="svg", dpi=4000)
-        if showplots_flag:
-            plt.show()
-        plt.clf()
-        plt.cla()
-        plt.close()
+        output_plot(plt, name, showplots_flag, saveplots_flag)
     
 
 # Vary threads, phi and query rate
@@ -134,53 +126,23 @@ if vt_phi_qr:
     perfdf=crate_performance_results_df(names,streamlens,query_rates,df_max_uniques,df_max_sums,threads,[1.25],phis,"phiqr",datasets,"threads",False,True, "latency/vt/")
 
     if latency:
-        matplotlib.rcParams['figure.figsize'] = (6, 5.5) 
-        plt.rc('legend', fontsize=26)
-        matplotlib.rcParams.update({'font.size': 26})
-
-        # Latency with 0.1% queries deleg diff threads:
-
         fig, ax1 = plt.subplots()
-        palette = sns.color_palette(palette="muted")
-        #Only orange and green
-        palette = [ (0.9333333333333333, 0.5215686274509804, 0.2901960784313726), (0.41568627450980394, 0.8, 0.39215686274509803)]
+        # Latency with 0.1% queries deleg diff threads:
         lineplot = sns.lineplot(x="Threads", y="Latency", data=perfdf[(perfdf["Query Rate"] == 0.01) & 
                                                                         (perfdf["Dataset"] == "Zipf") & 
                                                                         (perfdf["Algorithm"] != "QOSS") &
                                                                         (perfdf["Threads"] != 1) & 
                                                                         (perfdf["phi"] == 0.0001)
                                                                     ], 
-                        markersize=24, linewidth=7, linestyle="dashed", marker="o",
-                         hue="Algorithm", palette=palette, ax=ax1)
+                        markersize=24, linewidth=7, marker=marker_styles['phi'][2],
+                         hue="Algorithm", palette='muted', ax=ax1)
         ax1.set_yscale("log")
         ax1.set_xlabel("Threads")
         ax1.set_ylabel(r"Latency ($\mu$sec)")
-        ax1.set_ylim(5,40000)
-        #ax1.set_xticks(np.arange(4, 28, 4))
-        #ax1.set_xticklabels(np.arange(4, 28, 4))
+        ax1.set_ylim(0.005,40000)
+        ax1.set_xticks(np.arange(8, 28, 8))
+        ax1.set_xticklabels(np.arange(8, 28, 8))
 
-
-        leg=lineplot.legend(fontsize=26,
-        loc='upper center',
-        ncol=1,
-        prop={'weight':'normal'},
-        markerscale=1,
-        labelspacing=0.05,
-        borderpad=0.1,
-        handletextpad=0.1,
-        framealpha=0.4,
-        handlelength=0.5,
-        handleheight=0.5,
-        borderaxespad=0,
-        columnspacing=0.2)
-        [L.set_linewidth(8.0) for L in leg.legendHandles]
-        plt.tight_layout()
+        generate_legend(lineplot, 'best')
         name = "plots/latency/vt/threads_latency_0.0001phi_0.01query.svg"
-        if saveplots_flag:
-            create_parent_dir_if_not_exists(name)
-            plt.savefig(name, format="svg", dpi=4000)
-        if showplots_flag:
-            plt.show()
-        plt.clf()
-        plt.cla()
-        plt.close()
+        output_plot(plt, name, showplots_flag, saveplots_flag)
