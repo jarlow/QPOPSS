@@ -133,7 +133,7 @@ if vt_phi_qr:
                                                                         (perfdf["Algorithm"] != "QOSS") &
                                                                         (perfdf["Threads"] != 1) & 
                                                                         (perfdf["phi"] == 0.0001)
-                                                                    ], 
+                                                                    ],
                         markersize=24, linewidth=7, marker=marker_styles['phi'][2],
                          hue="Algorithm", palette='muted', ax=ax1)
         ax1.set_yscale("log")
