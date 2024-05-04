@@ -15,19 +15,19 @@ def bytes_to_megabytes(bytes):
 
 def delegation_filters_overhead_megabytes(T, df_u):
     return bytes_to_megabytes((40*(T**2)+4*(T**2)*2*df_u + 8 * T + 40*T))
-
-def QPOPSS_counters(T, eps):
+def PRIF_queue_overhead_megabytes():
+    return 100
+def QPOPSS_counters(eps):
     return eps**(-1)
 def QPOPSS_megabytes(T, eps, df_u=0):
-    return bytes_to_megabytes(COUNTER_BYTES * QPOPSS_counters(T, eps)) + \
+    return bytes_to_megabytes(COUNTER_BYTES * QPOPSS_counters(eps)) + \
             delegation_filters_overhead_megabytes(T, df_u)
 def PRIF_counters(T, eps, beta):
     return 2*((T+1)/(eps-beta))
 def PRIF_megabytes(T, eps, beta):
-    #buffer_overhead = 1000000 #TODO: determine realistic buffer size
-    return bytes_to_megabytes(COUNTER_BYTES * PRIF_counters(T, eps, beta))
+    return bytes_to_megabytes(COUNTER_BYTES * PRIF_counters(T, eps, beta)) + PRIF_queue_overhead_megabytes()
 def TOPKAPI_counters(T,eps):
-    return QPOPSS_counters(T,eps) * T
+    return QPOPSS_counters(eps) * T
 def TOPKAPI_megabytes(T,eps):
     return bytes_to_megabytes(COUNTER_BYTES * TOPKAPI_counters(T,eps))
 
@@ -123,8 +123,8 @@ def plot_memory_usage_2d():
     '''Plot memory usage by QPOPSS when compared to PRIF'''
     phis = [0.0001, 0.0002, 0.001]
     eps_ratio = 0.1
-    beta_ratio = 0.1
-    threads = range(1, 128, 16)
+    beta_ratio = 0.9
+    threads = range(1, 512, 64)
     
     fig, ax = plt.subplots()
     df = pd.DataFrame(columns=['phi', 'threads', 'memory', 'Algorithm'])
@@ -136,8 +136,8 @@ def plot_memory_usage_2d():
             zs_prif = PRIF_megabytes(t, eps, beta)
             zs_topkapi = TOPKAPI_megabytes(t, eps)
             df = df._append({'phi': phi, 'threads': t, 'memory': zs_qpopss, 'Algorithm': 'QPOPSS'}, ignore_index=True)
-            df = df._append({'phi': phi, 'threads': t, 'memory': zs_prif, 'Algorithm': 'PRIF'}, ignore_index=True)
             df = df._append({'phi': phi, 'threads': t, 'memory': zs_topkapi, 'Algorithm': 'TOPKAPI'}, ignore_index=True)
+            df = df._append({'phi': phi, 'threads': t, 'memory': zs_prif, 'Algorithm': 'PRIF'}, ignore_index=True)
     df['phi'] = df['phi'].astype(str)
     df['threads'] = df['threads'].astype(int)
     df['memory'] = df['memory'].astype(float)
@@ -148,7 +148,7 @@ def plot_memory_usage_2d():
     generate_legend(lineplot)
     ax.set_xlabel("Threads")
     ax.set_ylabel("Memory consumption (MB)")
-    #ax.set_yscale('log')
+    ax.set_yscale('log')
     name = "plots/mem_usage_2d.svg"
     output_plot(plt,name,showplots_flag, saveplots_flag)
     
