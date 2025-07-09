@@ -1,4 +1,4 @@
-The Delegation Space-Saving algorithm
+QPOPSS:  Query and Parallelism Optimized Space-Saving
 ----------------------------------
 Instructions
 ----------------------------------
